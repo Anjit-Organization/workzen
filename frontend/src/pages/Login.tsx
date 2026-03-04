@@ -44,7 +44,7 @@ export const Login: React.FC = () => {
                     Sign in to your account
                 </h2>
                 <p className="mt-2 text-center text-sm text-gray-600">
-                    Enterprise HRMS Portal
+                    Workzen HRMS Portal
                 </p>
             </div>
 
@@ -70,7 +70,7 @@ export const Login: React.FC = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
-                                    placeholder="admin@hrms.com"
+                                    placeholder="admin@workzen.com"
                                 />
                             </div>
                         </div>

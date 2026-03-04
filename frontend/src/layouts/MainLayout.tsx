@@ -19,7 +19,7 @@ export const MainLayout: React.FC = () => {
             <aside className="w-64 bg-slate-900 text-white flex flex-col hidden md:flex">
                 <div className="h-16 flex items-center px-6 border-b border-slate-800">
                     <Building className="h-6 w-6 text-indigo-400 mr-2" />
-                    <span className="text-lg font-bold">HRMS Portal</span>
+                    <span className="text-lg font-bold">Workzen HRMS Portal</span>
                 </div>
 
                 <nav className="flex-1 px-4 py-6 space-y-2">
@@ -151,7 +151,7 @@ export const MainLayout: React.FC = () => {
                     <div className="flex items-center md:hidden">
                         <Menu className="h-6 w-6 text-gray-500 mr-4 cursor-pointer" />
                         <Building className="h-6 w-6 text-indigo-600" />
-                        <span className="ml-2 font-bold text-gray-900">HRMS</span>
+                        <span className="ml-2 font-bold text-gray-900">Workzen</span>
                         {user?.organizationName && (
                             <span className="ml-2 text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded hidden sm:inline-block">
                                 {user.organizationName}
