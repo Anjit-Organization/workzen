@@ -22,7 +22,7 @@ export class TasksService {
         return newTask.save();
     }
 
-    async findAll(organizationId: string, projectId?: string, userId?: string, role?: string): Promise<Task[]> {
+    async findAll(organizationId: string, projectId?: string, userId?: string, status?: string, role?: string): Promise<Task[]> {
         const filter: any = { organizationId };
         if (projectId) {
             filter.projectId = projectId;
@@ -40,6 +40,16 @@ export class TasksService {
         } else if (userId) {
             // If they explicitly filter by a user
             filter.assigneeId = userId;
+        }
+
+        if (status) {
+            if (status === 'NOT_CLOSED') {
+                filter.status = { $ne: 'CLOSED' };
+            } else if (status === 'ALL') {
+                // Return all tasks, no status filter needed
+            } else {
+                filter.status = status;
+            }
         }
 
         return this.taskModel.find(filter)

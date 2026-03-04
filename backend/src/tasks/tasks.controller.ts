@@ -18,10 +18,10 @@ export class TasksController {
     }
 
     @Get()
-    findAll(@Query('projectId') projectId: string, @Query('userId') userId: string, @Request() req: any) {
+    findAll(@Query('projectId') projectId: string, @Query('userId') userId: string, @Query('status') status: string, @Request() req: any) {
         // If employee, limit their view in the service
         const filterUserId = req.user.role === 'EMPLOYEE' ? req.user.id : userId;
-        return this.tasksService.findAll(req.user.organizationId, projectId, filterUserId, req.user.role);
+        return this.tasksService.findAll(req.user.organizationId, projectId, filterUserId, status, req.user.role);
     }
 
     @Get(':id')

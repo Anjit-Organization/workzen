@@ -27,7 +27,7 @@ export class Task {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
     createdBy: User;
 
-    @Prop({ required: true, enum: ['TODO', 'IN_PROGRESS', 'DONE'], default: 'TODO' })
+    @Prop({ required: true, enum: ['TODO', 'IN_PROGRESS', 'DONE', 'CLOSED'], default: 'TODO' })
     status: string;
 
     @Prop()

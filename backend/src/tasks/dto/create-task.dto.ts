@@ -22,6 +22,6 @@ export class CreateTaskDto {
     deadline?: string;
 
     @IsOptional()
-    @IsEnum(['TODO', 'IN_PROGRESS', 'DONE'])
+    @IsEnum(['TODO', 'IN_PROGRESS', 'DONE', 'CLOSED'])
     status?: string;
 }

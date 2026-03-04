@@ -8,16 +8,17 @@ export interface Task {
     organizationId: string;
     assigneeId: any;
     createdBy: any;
-    status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CLOSED';
     deadline?: string;
     createdAt: string;
 }
 
 export const taskService = {
-    getAll: async (projectId?: string, userId?: string) => {
+    getAll: async (projectId?: string, userId?: string, status?: string) => {
         const params: any = {};
         if (projectId) params.projectId = projectId;
         if (userId) params.userId = userId;
+        if (status) params.status = status;
         const response = await api.get('/tasks', { params });
         return response.data;
     },

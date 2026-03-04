@@ -11,6 +11,7 @@ import { Attendance } from './pages/Attendance';
 import { Settings } from './pages/Settings';
 import { Projects } from './pages/Projects';
 import { Tasks } from './pages/Tasks';
+import { TaskHistory } from './pages/TaskHistory';
 import { OrganizationDetails } from './pages/OrganizationDetails';
 import { GlobalUsers } from './pages/GlobalUsers';
 
@@ -40,6 +41,7 @@ function App() {
                         <Route path="users" element={<GlobalUsers />} />
                         <Route path="projects" element={<Projects />} />
                         <Route path="tasks" element={<Tasks />} />
+                        <Route path="task-history" element={<TaskHistory />} />
                     </Route>
 
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />

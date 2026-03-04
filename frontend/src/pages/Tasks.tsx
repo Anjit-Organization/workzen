@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { taskService, Task } from '../services/taskService';
 import { projectService, Project } from '../services/projectService';
-import { useSearchParams } from 'react-router-dom';
-import { Plus, CheckCircle2, Clock, PlayCircle, Calendar, CalendarClock } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Plus, CheckCircle2, Clock, PlayCircle, Calendar, CalendarClock, History } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import toast from 'react-hot-toast';
 
 export const Tasks: React.FC = () => {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const projectIdFilter = searchParams.get('project');
 
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -34,7 +35,7 @@ export const Tasks: React.FC = () => {
         setIsLoading(true);
         try {
             const [tasksData, projectsData] = await Promise.all([
-                taskService.getAll(projectIdFilter || undefined),
+                taskService.getAll(projectIdFilter || undefined, undefined, 'NOT_CLOSED'),
                 projectService.getAll()
             ]);
             setTasks(tasksData);
@@ -96,7 +97,7 @@ export const Tasks: React.FC = () => {
         resetForm();
     };
 
-    const updateStatus = async (id: string, status: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
+    const updateStatus = async (id: string, status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CLOSED') => {
         try {
             await taskService.update(id, { status });
             toast.success('Status updated');
@@ -112,11 +113,11 @@ export const Tasks: React.FC = () => {
     const doneTasks = tasks.filter(t => t.status === 'DONE');
 
     const KanbanColumn = ({ title, tasks, icon: Icon, colorClass }: any) => (
-        <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 min-h-[500px] flex flex-col">
-            <h3 className={`font-semibold mb-4 flex items-center ${colorClass}`}>
-                <Icon className="w-5 h-5 mr-2" /> {title} ({tasks.length})
+        <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-3 min-h-[500px] flex flex-col">
+            <h3 className={`text-sm font-semibold mb-3 flex items-center ${colorClass}`}>
+                <Icon className="w-4 h-4 mr-1.5" /> {title} ({tasks.length})
             </h3>
-            <div className="space-y-4 flex-1">
+            <div className="space-y-3 flex-1">
                 {tasks.map((task: Task) => {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
@@ -138,29 +139,29 @@ export const Tasks: React.FC = () => {
                     const dlColor = isOverdue ? 'text-red-700 bg-red-100' : isApproaching ? 'text-amber-700 bg-amber-100' : 'text-amber-600 bg-amber-50';
 
                     return (
-                        <div key={task._id} className={`p-4 rounded-lg shadow-sm border hover:shadow-md transition-shadow ${cardBg}`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+                        <div key={task._id} className={`p-3 rounded-lg shadow-sm border hover:shadow-md transition-shadow ${cardBg}`}>
+                            <div className="flex justify-between items-start mb-1.5">
+                                <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                                     {task.projectId?.name || 'Unknown Project'}
                                 </span>
                             </div>
-                            <h4 className="font-bold text-slate-900 mb-1">{task.title}</h4>
-                            <p className="text-sm text-slate-500 mb-4 line-clamp-2">{task.description}</p>
+                            <h4 className="text-sm font-bold text-slate-900 mb-1 leading-tight">{task.title}</h4>
+                            <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">{task.description}</p>
 
                             {task.deadline && (
-                                <div className={`flex items-center text-xs font-medium mb-3 self-start px-2 py-1 rounded w-fit ${dlColor}`}>
+                                <div className={`flex items-center text-[10px] font-medium mb-2 self-start px-1.5 py-0.5 rounded w-fit ${dlColor}`}>
                                     <CalendarClock className="w-3 h-3 mr-1" />
                                     Due {new Date(task.deadline).toLocaleDateString()}
                                 </div>
                             )}
 
-                            <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100">
+                            <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center">
-                                        <div className="h-6 w-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold title">
+                                        <div className="h-5 w-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[9px] font-bold title">
                                             {task.assigneeId?.name?.charAt(0) || 'U'}
                                         </div>
-                                        <span className="text-xs text-slate-500 ml-2 truncate max-w-[120px]">
+                                        <span className="text-[10px] text-slate-500 ml-1.5 truncate max-w-[100px]">
                                             {task.assigneeId?.name || 'Unassigned'}
                                         </span>
                                     </div>
@@ -176,15 +177,18 @@ export const Tasks: React.FC = () => {
                             </div>
 
                             {/* Status Actions */}
-                            <div className="flex space-x-1 mt-3">
+                            <div className="flex space-x-1 mt-2">
                                 {task.status !== 'TODO' && (
-                                    <button onClick={() => updateStatus(task._id, 'TODO')} className="flex-1 text-[10px] font-medium py-1.5 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">Todo</button>
+                                    <button onClick={() => updateStatus(task._id, 'TODO')} className="flex-1 text-[9px] font-medium py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">Todo</button>
                                 )}
                                 {task.status !== 'IN_PROGRESS' && (
-                                    <button onClick={() => updateStatus(task._id, 'IN_PROGRESS')} className="flex-1 text-[10px] font-medium py-1.5 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">Start</button>
+                                    <button onClick={() => updateStatus(task._id, 'IN_PROGRESS')} className="flex-1 text-[9px] font-medium py-1 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">Start</button>
                                 )}
                                 {task.status !== 'DONE' && (
-                                    <button onClick={() => updateStatus(task._id, 'DONE')} className="flex-1 text-[10px] font-medium py-1.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors">Complete</button>
+                                    <button onClick={() => updateStatus(task._id, 'DONE')} className="flex-1 text-[9px] font-medium py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors">Complete</button>
+                                )}
+                                {task.status === 'DONE' && canManage && (
+                                    <button onClick={() => updateStatus(task._id, 'CLOSED')} className="flex-1 text-[9px] font-medium py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors">Close</button>
                                 )}
                             </div>
                         </div>
@@ -204,13 +208,22 @@ export const Tasks: React.FC = () => {
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Tasks</h1>
                     <p className="mt-1 text-sm text-slate-500">Track and manage project deliverables.</p>
                 </div>
-                <button
-                    onClick={() => { resetForm(); setIsModalOpen(true); }}
-                    className="mt-4 sm:mt-0 flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium"
-                >
-                    <Plus className="h-5 w-5 mr-1.5" />
-                    New Task
-                </button>
+                <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+                    <button
+                        onClick={() => navigate('/task-history')}
+                        className="flex items-center bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm font-medium"
+                    >
+                        <History className="h-5 w-5 mr-1.5 text-slate-500" />
+                        Task History
+                    </button>
+                    <button
+                        onClick={() => { resetForm(); setIsModalOpen(true); }}
+                        className="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium"
+                    >
+                        <Plus className="h-5 w-5 mr-1.5" />
+                        New Task
+                    </button>
+                </div>
             </div>
 
             {isLoading ? (
