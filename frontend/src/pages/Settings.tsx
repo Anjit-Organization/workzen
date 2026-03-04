@@ -94,7 +94,7 @@ export const Settings: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Create HR Form */}
+                {/* Create HR Form .*/}
                 <div className="lg:col-span-1 border border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden h-fit">
                     <div className="p-5 border-b border-slate-200 bg-slate-50">
                         <h2 className="text-lg font-medium text-slate-800 flex items-center">
