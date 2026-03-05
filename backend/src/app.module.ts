@@ -22,7 +22,7 @@ import { TasksModule } from './tasks/tasks.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI') || 'mongodb+srv://anjitaniket_db_user:kq06ElnBbCKheLNG@cluster0.pw4zuqj.mongodb.net/?appName=Cluster0',
+        uri: configService.get<string>('MONGODB_URI') || '',
       }),
       inject: [ConfigService],
     }),
