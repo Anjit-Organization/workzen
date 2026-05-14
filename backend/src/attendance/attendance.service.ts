@@ -118,6 +118,21 @@ export class AttendanceService {
             .exec();
     }
 
+    async getMonthlyByUser(userId: string, month: string, organizationId?: string) {
+        // month format: YYYY-MM
+        const startDate = `${month}-01`;
+        // Last day: create next month's first day and go back
+        const [year, mon] = month.split('-').map(Number);
+        const lastDay = new Date(year, mon, 0).getDate(); // 0th day of next month = last day of current month
+        const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
+        const filter: any = {
+            userId,
+            date: { $gte: startDate, $lte: endDate },
+        };
+        if (organizationId) filter.organizationId = organizationId;
+        return this.attendanceModel.find(filter).sort({ date: 1 }).exec();
+    }
+
     // --- Corrections ---
 
     async submitCorrection(userId: string, dto: CreateCorrectionDto, organizationId?: string) {

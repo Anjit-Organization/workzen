@@ -32,6 +32,24 @@ export class Task {
 
     @Prop()
     deadline: Date;
+
+    @Prop({ enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'MEDIUM' })
+    priority: string;
+
+    @Prop()
+    estimatedHours: number;
+
+    @Prop()
+    startDate: Date;
+
+    @Prop()
+    plannedEndDate: Date;
+
+    @Prop()
+    actualEndDate: Date;
+
+    @Prop()
+    comments: string;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

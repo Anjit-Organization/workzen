@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { dashboardService, DashboardStats } from '../services/dashboardService';
-import { Users, TrendingUp, Clock, AlertCircle, Building, Calendar, DollarSign, IndianRupee, Edit3, BellRing } from 'lucide-react';
+import { Users, TrendingUp, Clock, AlertCircle, Building, Calendar, DollarSign, IndianRupee, Edit3, BellRing, ChevronDown } from 'lucide-react';
 
 import { attendanceService, AttendanceStatus } from '../services/attendanceService';
 import { CorrectionModal } from '../components/CorrectionModal';
@@ -11,12 +11,25 @@ import { employeeService } from '../services/employeeService';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
+const MONTHS = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+];
+
 export const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [sendNotificationModalOpen, setSendNotificationModalOpen] = useState(false);
+
+    // Attendance graph tab state
+    const [activeTab, setActiveTab] = useState<'weekly' | 'monthly'>('weekly');
+    const now = new Date();
+    const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); 
+    const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+    const [monthlyGraphData, setMonthlyGraphData] = useState<any[]>([]);
+    const [monthlyLoading, setMonthlyLoading] = useState(false);
 
     // Attendance State
     const [attendance, setAttendance] = useState<AttendanceStatus | null>(null);
@@ -41,6 +54,24 @@ export const Dashboard: React.FC = () => {
             console.error('Failed to fetch attendance status', error);
         }
     };
+
+    const fetchMonthlyData = async (month: number, year: number) => {
+        setMonthlyLoading(true);
+        try {
+            const res = await dashboardService.getMonthlyAttendance(month, year);
+            setMonthlyGraphData(res.graphData);
+        } catch (e) {
+            console.error('Failed to fetch monthly attendance', e);
+        } finally {
+            setMonthlyLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'monthly') {
+            fetchMonthlyData(selectedMonth, selectedYear);
+        }
+    }, [activeTab, selectedMonth, selectedYear]);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -298,36 +329,127 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Attendance Visualization (Placeholder for minimal visualization) */}
+                {/* Attendance Visualization */}
                 <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6 overflow-hidden flex flex-col">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-6 flex items-center">
-                        <Calendar className="w-5 h-5 mr-2 text-indigo-500" />
-                        Attendance Overview
-                    </h3>
+                    {/* Header row: title + tabs + dropdown */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                        <h3 className="text-lg font-semibold text-slate-900 flex items-center shrink-0">
+                            <Calendar className="w-5 h-5 mr-2 text-indigo-500" />
+                            Attendance Overview
+                        </h3>
 
-                    <div className="flex-1 flex flex-col justify-center mt-4">
+                        <div className="flex items-center gap-3">
+                            {/* Weekly / Monthly Tabs */}
+                            <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
+                                <button
+                                    onClick={() => setActiveTab('weekly')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                                        activeTab === 'weekly'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Weekly
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('monthly')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                                        activeTab === 'monthly'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Monthly
+                                </button>
+                            </div>
+
+                            {/* Month Dropdown — enabled only in Monthly tab */}
+                            <div className={`relative ${activeTab === 'weekly' ? 'opacity-40 pointer-events-none' : ''}`}>
+                                <select
+                                    disabled={activeTab === 'weekly'}
+                                    value={`${selectedYear}-${selectedMonth}`}
+                                    onChange={(e) => {
+                                        const [y, m] = e.target.value.split('-').map(Number);
+                                        setSelectedYear(y);
+                                        setSelectedMonth(m);
+                                    }}
+                                    className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer shadow-sm"
+                                >
+                                    {/* Current year + previous year months */}
+                                    {[selectedYear, selectedYear - 1].flatMap((yr) =>
+                                        MONTHS.map((mn, idx) => (
+                                            <option key={`${yr}-${idx + 1}`} value={`${yr}-${idx + 1}`}>
+                                                {mn} {yr}
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
+                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-center">
                         <div className="h-48 w-full">
-                            {stats?.attendanceGraphData ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={stats.attendanceGraphData.slice().reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
-                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                                        <Tooltip
-                                            cursor={{ fill: '#F1F5F9' }}
-                                            contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                            itemStyle={{ fontSize: '13px', fontWeight: 500 }}
-                                            labelStyle={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}
-                                        />
-                                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                                        <Bar dataKey="present" name="Present" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={32} />
-                                        <Bar dataKey="absent" name="Absent" fill="#CBD5E1" radius={[4, 4, 0, 0]} barSize={32} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                            {activeTab === 'weekly' ? (
+                                // ── Weekly Chart (unchanged) ──
+                                stats?.attendanceGraphData ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={stats.attendanceGraphData.slice().reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                                            <Tooltip
+                                                cursor={{ fill: '#F1F5F9' }}
+                                                contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                itemStyle={{ fontSize: '13px', fontWeight: 500 }}
+                                                labelStyle={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}
+                                            />
+                                            <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                                            <Bar dataKey="present" name="Present" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={32} />
+                                            <Bar dataKey="absent" name="Absent" fill="#CBD5E1" radius={[4, 4, 0, 0]} barSize={32} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">
+                                        No attendance data available
+                                    </div>
+                                )
                             ) : (
-                                <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">
-                                    No attendance data available
-                                </div>
+                                // ── Monthly Chart ──
+                                monthlyLoading ? (
+                                    <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">
+                                        Loading monthly data...
+                                    </div>
+                                ) : monthlyGraphData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={monthlyGraphData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fontSize: 11, fill: '#64748B' }}
+                                                dy={10}
+                                                interval={1}
+                                            />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                                            <Tooltip
+                                                cursor={{ fill: '#F1F5F9' }}
+                                                contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                itemStyle={{ fontSize: '13px', fontWeight: 500 }}
+                                                labelStyle={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}
+                                            />
+                                            <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                                            <Bar dataKey="present" name="Present" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={14} />
+                                            <Bar dataKey="absent" name="Absent" fill="#CBD5E1" radius={[4, 4, 0, 0]} barSize={14} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">
+                                        No data for {MONTHS[selectedMonth - 1]} {selectedYear}
+                                    </div>
+                                )
                             )}
                         </div>
                     </div>

@@ -108,4 +108,27 @@ export class DashboardService {
             attendanceGraphData
         };
     }
+
+    async getMonthlyAttendance(organizationId: string, month: number, year: number) {
+        const empFilter: any = { status: 'ACTIVE' };
+        if (organizationId) empFilter.organizationId = organizationId;
+        const activeEmployees = await this.employeeModel.countDocuments(empFilter).exec();
+
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+        const graphData = await Promise.all(days.map(async (day) => {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const attFilter: any = { date: dateStr };
+            if (organizationId) attFilter.organizationId = organizationId;
+            const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
+            return {
+                name: `${day}`,
+                present: presenceCount,
+                absent: Math.max(0, activeEmployees - presenceCount),
+            };
+        }));
+
+        return { graphData, totalEmployees: activeEmployees };
+    }
 }

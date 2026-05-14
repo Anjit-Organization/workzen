@@ -32,5 +32,9 @@ export const dashboardService = {
     getStats: async (): Promise<DashboardStats> => {
         const response = await api.get('/dashboard/stats');
         return response.data;
+    },
+    getMonthlyAttendance: async (month: number, year: number): Promise<{ graphData: any[]; totalEmployees: number }> => {
+        const response = await api.get('/dashboard/monthly-attendance', { params: { month, year } });
+        return response.data;
     }
 };
