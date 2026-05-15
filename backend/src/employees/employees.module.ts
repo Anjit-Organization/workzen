@@ -9,10 +9,13 @@ import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { UsersModule } from '../users/users.module';
 
+import { User, UserSchema } from '../users/schemas/user.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Employee.name, schema: EmployeeSchema },
+      { name: User.name, schema: UserSchema },
       { name: Leave.name, schema: LeaveSchema },
       { name: Attendance.name, schema: AttendanceSchema },
       { name: Project.name, schema: ProjectSchema },

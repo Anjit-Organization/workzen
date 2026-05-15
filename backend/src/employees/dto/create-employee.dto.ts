@@ -1,4 +1,5 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString, IsDateString, IsEnum, IsNumber, Matches } from 'class-validator';
+import { Role } from '../../common/enums/role.enum';
 
 export class CreateEmployeeDto {
     @IsString()
@@ -49,6 +50,10 @@ export class CreateEmployeeDto {
     status?: string;
 
     @IsOptional()
+    @IsEnum(Role)
+    role?: Role;
+
+    @IsOptional()
     @IsString()
     organizationId?: string;
 
@@ -56,3 +61,4 @@ export class CreateEmployeeDto {
     @IsString()
     organizationName?: string;
 }
+

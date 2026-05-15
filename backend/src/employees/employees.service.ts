@@ -11,10 +11,13 @@ import { Attendance, AttendanceDocument } from '../attendance/schemas/attendance
 import { Project, ProjectDocument } from '../projects/schemas/project.schema';
 import { Task, TaskDocument } from '../tasks/schemas/task.schema';
 
+import { User, UserDocument } from '../users/schemas/user.schema';
+
 @Injectable()
 export class EmployeesService {
     constructor(
         @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+        @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel(Leave.name) private leaveModel: Model<LeaveDocument>,
         @InjectModel(Attendance.name) private attendanceModel: Model<AttendanceDocument>,
         @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
@@ -37,9 +40,10 @@ export class EmployeesService {
             passwordHash: 'Welcome@123',
             firstName,
             lastName,
-            role: Role.EMPLOYEE,
+            role: createEmployeeDto.role || Role.EMPLOYEE,
             organizationId: createEmployeeDto.organizationId
         });
+
 
         // Generate Employee ID
         let employeeId = 'EMP0001';
@@ -79,6 +83,33 @@ export class EmployeesService {
             this.employeeModel.find(filter).populate('userId', 'firstName lastName email').skip(skip).limit(Number(limit)).exec(),
             this.employeeModel.countDocuments(filter).exec(),
         ]);
+
+        // For administrative lists (like dropdowns), include HR and Managers who aren't in Employee collection
+        if (!search) {
+             const employeeUserIds = data.map(e => (e.userId as any)?._id || e.userId);
+             const additionalUsers = await this.userModel.find({
+                organizationId,
+                role: { $in: [Role.HR, Role.MANAGER] },
+                isActive: true,
+                _id: { $nin: employeeUserIds }
+            } as any).exec();
+            
+            const virtualEmployees = additionalUsers.map(u => ({
+                _id: u._id,
+                name: `${u.firstName} ${u.lastName}`,
+                email: u.email,
+                department: 'Administration',
+                designation: u.role,
+                status: 'ACTIVE',
+                userId: u,
+                isVirtual: true
+            }));
+            
+            return { 
+                data: [...data, ...virtualEmployees as any].slice(0, Number(limit)), 
+                total: total + virtualEmployees.length 
+            };
+        }
 
         return { data, total };
     }

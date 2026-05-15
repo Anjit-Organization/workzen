@@ -85,5 +85,10 @@ export const attendanceService = {
     resolveCorrection: async (id: string, data: { status: 'APPROVED' | 'REJECTED', hrComments?: string }) => {
         const response = await api.patch(`/attendance/correction/${id}/resolve`, data);
         return response.data;
-    }
+    },
+
+    getMonthlyByUser: async (userId: string, month: string): Promise<AttendanceRecord[]> => {
+        const response = await api.get('/attendance/monthly', { params: { userId, month } });
+        return response.data;
+    },
 };

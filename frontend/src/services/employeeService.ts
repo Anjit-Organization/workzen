@@ -16,10 +16,12 @@ export interface Employee {
     sickLeaveQuota: number;
     privilegeLeaveQuota: number;
     status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
+    role?: string;
     userId?: {
         _id: string;
         firstName: string;
         lastName: string;
+        role: string;
         email: string;
     };
 }
@@ -35,10 +37,11 @@ export const employeeService = {
         return response.data;
     },
 
-    create: async (data: Omit<Employee, '_id' | 'status' | 'userId'>) => {
+    create: async (data: any) => {
         const response = await api.post('/employees', data);
         return response.data;
     },
+
 
     update: async (id: string, data: Partial<Employee>) => {
         const response = await api.patch(`/employees/${id}`, data);

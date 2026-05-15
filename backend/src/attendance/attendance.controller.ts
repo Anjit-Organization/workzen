@@ -39,6 +39,17 @@ export class AttendanceController {
         return this.attendanceService.getAll(date, req.user.organizationId);
     }
 
+    @Get('monthly')
+    @UseGuards(RolesGuard)
+    @Roles(Role.ADMIN, Role.HR)
+    getMonthlyByUser(
+        @Query('userId') userId: string,
+        @Query('month') month: string,
+        @Req() req: any
+    ) {
+        return this.attendanceService.getMonthlyByUser(userId, month, req.user.organizationId);
+    }
+
     // --- Corrections ---
 
     @Post('correction')
