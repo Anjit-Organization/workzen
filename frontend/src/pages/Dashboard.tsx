@@ -59,7 +59,14 @@ export const Dashboard: React.FC = () => {
         setMonthlyLoading(true);
         try {
             const res = await dashboardService.getMonthlyAttendance(month, year);
-            setMonthlyGraphData(res.graphData);
+            // Defensive fix: Ensure labels are only day numbers and weekends are filtered
+            const processedData = res.graphData
+                .filter((d: any) => !d.name.includes('(Sat)') && !d.name.includes('(Sun)'))
+                .map((d: any) => ({
+                    ...d,
+                    name: d.name.split(' ')[0]
+                }));
+            setMonthlyGraphData(processedData);
         } catch (e) {
             console.error('Failed to fetch monthly attendance', e);
         } finally {
@@ -433,7 +440,7 @@ export const Dashboard: React.FC = () => {
                                                 dataKey="name"
                                                 axisLine={false}
                                                 tickLine={false}
-                                                tick={{ fontSize: 11, fill: '#64748B' }}
+                                                tick={{ fontSize: 10, fill: '#64748B' }}
                                                 dy={10}
                                                 interval={0}
                                             />
@@ -445,8 +452,8 @@ export const Dashboard: React.FC = () => {
                                                 labelStyle={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}
                                             />
                                             <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                                            <Bar dataKey="present" name="Present" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={14} />
-                                            <Bar dataKey="absent" name="Absent" fill="#CBD5E1" radius={[4, 4, 0, 0]} barSize={14} />
+                                            <Bar dataKey="present" name="Present" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={18} />
+                                            <Bar dataKey="absent" name="Absent" fill="#CBD5E1" radius={[4, 4, 0, 0]} barSize={18} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
