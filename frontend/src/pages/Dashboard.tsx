@@ -80,18 +80,21 @@ export const Dashboard: React.FC = () => {
                     window.location.href = '/organizations';
                     return;
                 }
-                if (user?.role === 'EMPLOYEE') {
+                if (user?.role === 'EMPLOYEE' || user?.role === 'MANAGER' || user?.role === 'HR') {
                     const [attData, histData] = await Promise.all([
                         attendanceService.getStatus(),
                         attendanceService.getHistory()
                     ]);
                     setAttendance(attData);
                     setHistory(histData);
-                    setIsLoading(false);
-                    return;
+                    if (user?.role === 'EMPLOYEE') {
+                        setIsLoading(false);
+                        return;
+                    }
                 }
                 const data = await dashboardService.getStats();
                 setStats(data);
+
             } catch (err: any) {
                 console.error("Failed to fetch dashboard stats", err);
                 setError('Failed to load dashboard statistics.');
@@ -120,31 +123,32 @@ export const Dashboard: React.FC = () => {
         }
     };
 
+    const formatTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return `${h}h ${m}m`;
+    };
+
+    const formatStopwatch = (att: AttendanceStatus | null, now: Date) => {
+        if (!att) return '00:00:00';
+        let totalSeconds = att.todayDuration || 0;
+        if (att.punchedIn && att.punchInTime) {
+            const diff = Math.floor((now.getTime() - new Date(att.punchInTime).getTime()) / 1000);
+            if (diff > 0) totalSeconds += diff;
+        }
+        const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+        const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+        const s = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+        return `${h}:${m}:${s}`;
+    };
+
     if (isLoading) {
         return <div className="p-8 text-center text-slate-500">Loading metrics...</div>;
     }
 
     if (user?.role === 'EMPLOYEE') {
-        const formatTime = (seconds: number) => {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            return `${h}h ${m}m`;
-        };
-
-        const formatStopwatch = (att: AttendanceStatus | null, now: Date) => {
-            if (!att) return '00:00:00';
-            let totalSeconds = att.todayDuration || 0;
-            if (att.punchedIn && att.punchInTime) {
-                const diff = Math.floor((now.getTime() - new Date(att.punchInTime).getTime()) / 1000);
-                if (diff > 0) totalSeconds += diff;
-            }
-            const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-            const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-            const s = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        };
-
         return (
+
             <div className="space-y-6 max-w-5xl mx-auto">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
@@ -486,11 +490,116 @@ export const Dashboard: React.FC = () => {
                         ) : (
                             <div className="text-center py-8 text-slate-500 text-sm flex flex-col items-center">
                                 <AlertCircle className="w-8 h-8 text-slate-300 mb-2" />
-                                No recent leave activity.
+                                 No recent leave activity.
                             </div>
+
                         )}
                     </div>
                 </div>
+            </div>
+
+
+                {/* Idle Personnel & Manager Punch Flow */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    {(user?.role === 'MANAGER' || user?.role === 'HR') && (
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col items-center justify-center p-8 text-center">
+                            <div className="mb-6">
+                                <p className="text-slate-500 font-medium mb-1">
+                                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                </p>
+                                <h2 className="text-4xl font-bold text-slate-900 font-mono tracking-tight">
+                                    {formatStopwatch(attendance, currentTime)}
+                                </h2>
+                            </div>
+
+                            <button
+                                onClick={handlePunch}
+                                disabled={isPunching}
+                                className={`w-40 h-40 rounded-full mb-6 flex flex-col items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-offset-4 ${attendance?.punchedIn
+                                    ? 'bg-gradient-to-br from-rose-500 to-rose-600 focus:ring-rose-500 shadow-rose-500/30'
+                                    : 'bg-gradient-to-br from-emerald-500 to-emerald-600 focus:ring-emerald-500 shadow-emerald-500/30'
+                                    } ${isPunching ? 'opacity-75 cursor-not-allowed scale-95' : ''}`}
+                            >
+                                <span className="text-3xl mb-1 drop-shadow-sm">👆</span>
+                                <span className="text-xl font-bold tracking-wide drop-shadow-sm">
+                                    {attendance?.punchedIn ? 'PUNCH OUT' : 'PUNCH IN'}
+                                </span>
+                            </button>
+
+                            <div className="flex space-x-6 text-xs text-slate-500 mt-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full">
+                                <div className="flex flex-col items-center">
+                                    <span className="font-semibold text-slate-900">{formatTime(attendance?.todayDuration || 0)}</span>
+                                    <span>Today</span>
+                                </div>
+                                <div className="w-px h-6 bg-slate-200"></div>
+                                <div className="flex flex-col items-center">
+                                    <span className="font-semibold text-slate-900">{attendance?.punchedIn && attendance?.punchInTime ? new Date(attendance.punchInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                                    <span>Entry</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+
+                    <div className={`${(user?.role === 'MANAGER' || user?.role === 'HR') ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col`}>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-6 border-b border-slate-100 pb-4 flex items-center justify-between">
+                            <span className="flex items-center">
+                                <Users className="w-5 h-5 mr-2 text-indigo-500" />
+                                Idle Personnel
+                            </span>
+                            <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{stats?.idleUsers?.length || 0} No Tasks</span>
+                        </h3>
+
+                        <div className="flex-1 overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Name</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Role</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Department</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Designation</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-slate-500 uppercase">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {stats?.idleUsers?.length ? (
+                                        stats.idleUsers.map((u) => (
+                                            <tr key={u._id}>
+                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900">{u.name}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500 text-xs font-bold">
+                                                    <span className={`px-2 py-0.5 rounded-full ${u.role === 'HR' ? 'bg-purple-100 text-purple-700' : u.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
+                                                        {u.role}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{u.department}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">{u.designation}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                                                    <button 
+                                                        onClick={() => window.location.href = '/tasks'}
+                                                        className="text-indigo-600 hover:text-indigo-900 font-medium text-xs"
+                                                    >
+                                                        Assign Task
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                                                All personnel have active tasks.
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+
+
+
 
                 {/* Pending Salaries Widget */}
                 <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col mt-6">
@@ -546,7 +655,41 @@ export const Dashboard: React.FC = () => {
                         </table>
                     </div>
                 </div>
-            </div>
+
+                {(user?.role === 'MANAGER' || user?.role === 'HR') && (
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 mt-6">
+                        <h3 className="text-xl font-semibold text-slate-900 mb-6">Your Recent Punches</h3>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Punch In</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Punch Out</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {history.slice(0, 5).map((record) => (
+                                        <tr key={record._id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{record.date}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                                {record.records && record.records.length > 0 && record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                                {record.records && record.records.length > 0 && record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                                {record.durationMs ? formatTime(record.durationMs / 1000) : '--'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
             <SendNotificationModal
                 isOpen={sendNotificationModalOpen}
                 onClose={() => setSendNotificationModalOpen(false)}

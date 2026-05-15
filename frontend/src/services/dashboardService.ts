@@ -25,7 +25,16 @@ export interface DashboardStats {
         payroll: number;
         salaryDate: number;
     }>;
+    idleUsers?: Array<{
+        _id: string;
+        name: string;
+        department: string;
+        designation: string;
+        role: string;
+    }>;
+
     attendanceGraphData?: any[];
+
 }
 
 export const dashboardService = {

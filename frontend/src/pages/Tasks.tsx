@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { taskService, Task } from '../services/taskService';
 import { projectService, Project } from '../services/projectService';
+import { employeeService, Employee } from '../services/employeeService';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     Plus,
@@ -25,6 +26,7 @@ export const Tasks: React.FC = () => {
 
     const [tasks, setTasks] = useState<Task[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -85,17 +87,19 @@ export const Tasks: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const [tasksData, projectsData] = await Promise.all([
+            const [tasksData, projectsData, employeesData] = await Promise.all([
                 taskService.getAll(
                     projectIdFilter || undefined,
                     undefined,
                     'NOT_CLOSED'
                 ),
-                projectService.getAll()
+                projectService.getAll(),
+                employeeService.getAll({ limit: 100 })
             ]);
 
             setTasks(tasksData);
             setProjects(projectsData);
+            setAllEmployees(employeesData.data || []);
         } catch (error) {
             console.error('Failed to fetch tasks', error);
         } finally {
@@ -106,11 +110,20 @@ export const Tasks: React.FC = () => {
     const handleSaveTask = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Validate: Project is mandatory for regular employees
+        const selectedEmp = allEmployees.find(emp => emp._id === assigneeId);
+        const role = selectedEmp?.role || (selectedEmp?.userId as any)?.role;
+
+        if (!selectedProject && role === 'EMPLOYEE') {
+            toast.error('Project is mandatory for regular employees');
+            return;
+        }
+
         try {
             const payload = {
                 title,
                 description,
-                projectId: selectedProject,
+                projectId: selectedProject || undefined,
                 assigneeId: assigneeId || undefined,
                 deadline: deadline || undefined,
 
@@ -324,7 +337,7 @@ export const Tasks: React.FC = () => {
                             <div className="flex justify-between items-start mb-1.5">
                                 <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                                     {task.projectId?.name ||
-                                        'Unknown Project'}
+                                        'General'}
                                 </span>
                             </div>
 
@@ -681,7 +694,7 @@ export const Tasks: React.FC = () => {
 
                                         <div className="mt-2">
                                             <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
-                                                {task.projectId?.name || 'Unknown Project'}
+                                                {task.projectId?.name || 'General'}
                                             </span>
                                         </div>
                                     </td>
@@ -923,7 +936,6 @@ export const Tasks: React.FC = () => {
                             </label>
 
                             <select
-                                required
                                 value={selectedProject}
                                 onChange={(e) =>
                                     setSelectedProject(
@@ -933,7 +945,7 @@ export const Tasks: React.FC = () => {
                                 className="mt-1 w-full rounded-lg border-slate-300 shadow-sm p-2 border"
                             >
                                 <option value="">
-                                    Select Project
+                                    General / No Project
                                 </option>
 
                                 {projects.map((p) => (
@@ -983,24 +995,46 @@ export const Tasks: React.FC = () => {
                                     Select Owner
                                 </option>
 
-                                {projects
-                                    .find(
-                                        (p) =>
-                                            p._id ===
-                                            selectedProject
-                                    )
-                                    ?.employees.map(
-                                        (emp: any) => (
+                                {selectedProject ? (
+                                    (() => {
+                                        const projectEmployees = projects.find(p => p._id === selectedProject)?.employees || [];
+                                        const adminStaff = allEmployees.filter(emp => {
+                                            const role = emp.role || (emp.userId as any)?.role;
+                                            const isHRorManager = role === 'HR' || role === 'MANAGER';
+                                            const isAlreadyInProject = projectEmployees.some((pe: any) => pe._id === emp._id);
+                                            return isHRorManager && !isAlreadyInProject;
+                                        });
+
+                                        return (
+                                            <>
+                                                {projectEmployees.map((emp: any) => (
+                                                    <option key={emp._id} value={emp._id}>
+                                                        {emp.name}
+                                                    </option>
+                                                ))}
+                                                {adminStaff.map((emp) => (
+                                                    <option key={emp._id} value={emp._id}>
+                                                        {emp.name} ({emp.role || (emp.userId as any)?.role})
+                                                    </option>
+                                                ))}
+                                            </>
+                                        );
+                                    })()
+                                ) : (
+                                    allEmployees
+                                        .filter(emp => {
+                                            const role = emp.role || (emp.userId as any)?.role;
+                                            return role === 'HR' || role === 'MANAGER';
+                                        })
+                                        .map((emp) => (
                                             <option
                                                 key={emp._id}
-                                                value={
-                                                    emp._id
-                                                }
+                                                value={emp._id}
                                             >
-                                                {emp.name}
+                                                {emp.name} ({emp.role || (emp.userId as any)?.role})
                                             </option>
-                                        )
-                                    )}
+                                        ))
+                                )}
                             </select>
                         </div>
                     </div>

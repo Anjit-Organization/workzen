@@ -19,9 +19,9 @@ export class CreateTaskDto {
     @IsString()
     description: string;
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsMongoId()
-    projectId: string;
+    projectId?: string;
 
     @IsOptional()
     @IsMongoId()

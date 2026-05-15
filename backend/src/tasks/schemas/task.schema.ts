@@ -15,7 +15,7 @@ export class Task {
     @Prop({ required: true })
     description: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Project', required: true })
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Project' })
     projectId: Project;
 
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Organization', required: true })
