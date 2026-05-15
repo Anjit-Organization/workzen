@@ -45,6 +45,10 @@ export class Employee {
     @Prop({ default: 'ACTIVE', enum: ['ACTIVE', 'INACTIVE', 'TERMINATED'] })
     status: string;
 
+    @Prop({ default: 'EMPLOYEE' })
+    role: string;
+
+
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
     userId: User;
 

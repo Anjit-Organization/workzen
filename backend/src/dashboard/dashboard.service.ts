@@ -4,25 +4,55 @@ import { Model } from 'mongoose';
 import { Employee, EmployeeDocument } from '../employees/schemas/employee.schema';
 import { Leave, LeaveDocument, LeaveStatus } from '../leaves/schemas/leave.schema';
 import { Attendance, AttendanceDocument } from 'src/attendance/schemas/attendance.schema';
+import { Task, TaskDocument } from '../tasks/schemas/task.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class DashboardService {
     constructor(
         @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+        @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel(Leave.name) private leaveModel: Model<LeaveDocument>,
         @InjectModel(Attendance.name) private attendanceModel: Model<AttendanceDocument>,
+        @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
     ) { }
 
     async getDashboardStats(organizationId?: string) {
         const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
         today.setHours(0, 0, 0, 0);
 
         const empFilter: any = { status: 'ACTIVE' };
         if (organizationId) empFilter.organizationId = organizationId;
 
-        // 1. Total Active Employees & Monthly Salary Cost
-        const activeEmployees = await this.employeeModel.find(empFilter).exec();
-        const totalEmployees = activeEmployees.length;
+        // 1. Total Active Employees
+        const activeEmployees = await this.employeeModel.find(empFilter).populate('userId', 'role').exec();
+        
+        const employeeUserIds = activeEmployees.map(e => (e.userId as any)?._id || e.userId);
+        
+        // Find users with role HR or MANAGER in this organization who might not have an Employee record
+        const additionalUsers = await this.userModel.find({
+            organizationId,
+            role: { $in: [Role.HR, Role.MANAGER] },
+            isActive: true,
+            _id: { $nin: employeeUserIds }
+        } as any).exec();
+
+        // Convert additionalUsers to a format compatible with activePersonnel mapping
+        const virtualPersonnel = additionalUsers.map(u => ({
+            _id: u._id, // Fallback to userId
+            name: `${u.firstName} ${u.lastName}`,
+            email: u.email,
+            department: 'Administration',
+            designation: u.role,
+            role: u.role,
+            userId: u,
+            isVirtual: true
+        }));
+
+        const activePersonnel = [...activeEmployees, ...virtualPersonnel as any];
+        const totalEmployees = activePersonnel.length;
 
         // Calculate Monthly Salary Cost
         const monthlySalaryCost = activeEmployees.reduce((sum, emp) => sum + (emp.payroll || 0), 0);
@@ -36,18 +66,19 @@ export class DashboardService {
         if (organizationId) leaveTodayFilter.organizationId = organizationId;
 
         const leavesToday = await this.leaveModel.find(leaveTodayFilter).exec();
-
         const totalOnLeaveToday = leavesToday.length;
 
-        // 3. Present Today (Rough Estimate = Total - On Leave)
-        const presentToday = totalEmployees - totalOnLeaveToday;
+        // 3. Present Today - Actual count from attendance records
+        const attFilterToday: any = { date: todayStr };
+        if (organizationId) attFilterToday.organizationId = organizationId;
+        const presentToday = await this.attendanceModel.countDocuments(attFilterToday).exec();
 
-        // 4. Pending Leave Requests (For HR/Admin attention)
+        // 4. Pending Leave Requests
         const pendingLeaveFilter: any = { status: LeaveStatus.PENDING };
         if (organizationId) pendingLeaveFilter.organizationId = organizationId;
         const pendingLeavesCount = await this.leaveModel.countDocuments(pendingLeaveFilter).exec();
 
-        // 5. Recent Leaves (List of 5 latest approved/pending leaves for timeline)
+        // 5. Recent Leaves
         const recentLeaveFilter: any = {};
         if (organizationId) recentLeaveFilter.organizationId = organizationId;
         const recentLeaves = await this.leaveModel.find(recentLeaveFilter)
@@ -56,7 +87,29 @@ export class DashboardService {
             .limit(5)
             .exec();
 
-        // 6. Date-wise Attendance Data for the Trailing 7 Days
+        // 6. Idle Users
+        const idleUsers = await Promise.all(activePersonnel.map(async (emp: any) => {
+            const activeTasksCount = await this.taskModel.countDocuments({
+                assigneeId: emp._id,
+                status: { $in: ['TODO', 'IN_PROGRESS'] },
+                organizationId
+            } as any).exec();
+
+            if (activeTasksCount === 0) {
+                return {
+                    _id: emp._id,
+                    name: emp.name,
+                    department: emp.department,
+                    designation: emp.designation,
+                    role: emp.role || (emp.userId as any)?.role || 'EMPLOYEE'
+                };
+            }
+            return null;
+        }));
+
+        const filteredIdleUsers = idleUsers.filter(u => u !== null);
+
+        // 7. Date-wise Attendance Data for the Trailing 7 Days
         const last7Days = Array.from({ length: 7 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (6 - i));
@@ -68,11 +121,10 @@ export class DashboardService {
             if (organizationId) attFilter.organizationId = organizationId;
             const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
 
-            // Format Day X mapping
             return {
                 name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),
                 present: presenceCount,
-                absent: totalEmployees - presenceCount
+                absent: Math.max(0, totalEmployees - presenceCount)
             };
         }));
 
@@ -105,7 +157,61 @@ export class DashboardService {
             pendingLeavesCount,
             recentLeaves,
             pendingSalaries,
+            idleUsers: filteredIdleUsers,
             attendanceGraphData
         };
+    }
+
+
+    async getMonthlyAttendance(organizationId: string, month: number, year: number) {
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const currentYear = today.getFullYear();
+        const currentDay = today.getDate();
+
+        const empFilter: any = { status: 'ACTIVE' };
+        if (organizationId) empFilter.organizationId = organizationId;
+
+        // 1. Total Active personnel who should be tracked (Employees, HR, Managers)
+        const activeEmployees = await this.employeeModel.countDocuments(empFilter).exec();
+        
+        const employeeUserIds = (await this.employeeModel.find(empFilter).select('userId')).map(e => e.userId);
+        
+        // Find users with role HR or MANAGER in this organization who might not have an Employee record
+        const additionalUsersCount = await this.userModel.countDocuments({
+            organizationId,
+            role: { $in: [Role.HR, Role.MANAGER] },
+            isActive: true,
+            _id: { $nin: employeeUserIds }
+        } as any).exec();
+
+        const totalEmployees = activeEmployees + additionalUsersCount;
+
+        const daysInMonth = new Date(year, month, 0).getDate();
+        let daysToFetch = daysInMonth;
+
+        // If requested month and year is current, truncate at today
+        if (year === currentYear && month === currentMonth) {
+            daysToFetch = currentDay;
+        } else if (year > currentYear || (year === currentYear && month > currentMonth)) {
+            // Future months - return empty graph data
+            return { graphData: [], totalEmployees: totalEmployees };
+        }
+
+        const days = Array.from({ length: daysToFetch }, (_, i) => i + 1);
+
+        const graphData = await Promise.all(days.map(async (day) => {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const attFilter: any = { date: dateStr };
+            if (organizationId) attFilter.organizationId = organizationId;
+            const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
+            return {
+                name: `${day}`,
+                present: presenceCount,
+                absent: Math.max(0, totalEmployees - presenceCount),
+            };
+        }));
+
+        return { graphData, totalEmployees: totalEmployees };
     }
 }

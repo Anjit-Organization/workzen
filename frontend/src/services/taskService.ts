@@ -11,6 +11,14 @@ export interface Task {
     status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CLOSED';
     deadline?: string;
     createdAt: string;
+
+    // New fields
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+    estimatedHours?: number;
+    startDate?: string;
+    plannedEndDate?: string;
+    actualEndDate?: string;
+    comments?: string;
 }
 
 export const taskService = {

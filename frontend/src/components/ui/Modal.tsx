@@ -13,7 +13,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden bg-black/50 backdrop-blur-sm">
-            <div className="relative w-full max-w-2xl p-4 md:h-auto">
+            <div className="relative w-full max-w-3xl p-4 md:h-auto">
                 <div className="relative bg-white rounded-xl shadow-lg border border-slate-100">
                     <div className="flex items-start justify-between p-5 border-b border-slate-100 rounded-t-xl">
                         <h3 className="text-xl font-semibold text-slate-900">{title}</h3>

@@ -15,7 +15,7 @@ export class Task {
     @Prop({ required: true })
     description: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Project', required: true })
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Project' })
     projectId: Project;
 
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Organization', required: true })
@@ -32,6 +32,24 @@ export class Task {
 
     @Prop()
     deadline: Date;
+
+    @Prop({ enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'MEDIUM' })
+    priority: string;
+
+    @Prop()
+    estimatedHours: number;
+
+    @Prop()
+    startDate: Date;
+
+    @Prop()
+    plannedEndDate: Date;
+
+    @Prop()
+    actualEndDate: Date;
+
+    @Prop()
+    comments: string;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);
