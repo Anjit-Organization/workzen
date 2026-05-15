@@ -206,8 +206,14 @@ export const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <EmployeeDashboardCalendar history={history} />
-
+                <EmployeeDashboardCalendar 
+                    history={history} 
+                    onEditClick={(date) => {
+                        const record = history.find(r => r.date === date);
+                        setSelectedAttendanceForCorrection({ id: record?._id || '', date });
+                        setCorrectionModalOpen(true);
+                    }}
+                />
                 {/* Employee Attendance History */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
                     <h3 className="text-xl font-semibold text-slate-900 mb-6">Recent Punches</h3>
