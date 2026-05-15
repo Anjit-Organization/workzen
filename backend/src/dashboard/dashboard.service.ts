@@ -217,23 +217,24 @@ export class DashboardService {
 
         const graphData = (await Promise.all(days.map(async (day) => {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const date = new Date(dateStr);
+            const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+
+            if (isWeekend) return null;
+
             const attFilter: any = { date: dateStr };
             if (organizationId) attFilter.organizationId = organizationId;
             const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
             
-            const date = new Date(dateStr);
-            const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
-            const dayName = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
-
             return {
-                name: `${day} (${dayName})`,
+                name: `${day}`,
                 present: presenceCount,
-                absent: isWeekend ? 0 : Math.max(0, totalEmployees - presenceCount),
-                holiday: isWeekend ? Math.max(0, totalEmployees - presenceCount) : 0,
-                isHoliday: isWeekend
+                absent: Math.max(0, totalEmployees - presenceCount),
+                holiday: 0,
+                isHoliday: false
             };
         })));
 
-        return { graphData, totalEmployees: totalEmployees };
+        return { graphData: graphData.filter(d => d !== null), totalEmployees: totalEmployees };
     }
 }
