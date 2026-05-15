@@ -399,7 +399,7 @@ export const Dashboard: React.FC = () => {
                                 // ── Weekly Chart (unchanged) ──
                                 stats?.attendanceGraphData ? (
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={stats.attendanceGraphData.slice().reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                        <BarChart data={stats.attendanceGraphData.slice().reverse().filter((d: any) => d.name !== 'Sat' && d.name !== 'Sun')} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} dy={10} />
                                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
@@ -435,7 +435,7 @@ export const Dashboard: React.FC = () => {
                                                 tickLine={false}
                                                 tick={{ fontSize: 11, fill: '#64748B' }}
                                                 dy={10}
-                                                interval={1}
+                                                interval={0}
                                             />
                                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
                                             <Tooltip

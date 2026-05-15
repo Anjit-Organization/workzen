@@ -109,24 +109,39 @@ export class DashboardService {
 
         const filteredIdleUsers = idleUsers.filter(u => u !== null);
 
-        // 7. Date-wise Attendance Data for the Trailing 7 Days
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
+        // 7. Date-wise Attendance Data for the Trailing 7 Working Days (Excluding Weekends)
+        const graphData = [];
+        let daysToFind = 7;
+        let currentOffset = 0;
+
+        while (graphData.length < daysToFind && currentOffset < 30) {
             const d = new Date();
-            d.setDate(d.getDate() - (6 - i));
-            return d.toISOString().split('T')[0];
-        });
+            d.setDate(d.getDate() - currentOffset);
+            
+            // Normalize to midnight UTC for consistent day-of-week checking
+            const dateStr = d.toISOString().split('T')[0];
+            const dateObj = new Date(dateStr + 'T00:00:00Z');
 
-        const attendanceGraphData = await Promise.all(last7Days.map(async (dateStr) => {
-            const attFilter: any = { date: dateStr };
-            if (organizationId) attFilter.organizationId = organizationId;
-            const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
+            // 0 is Sunday, 6 is Saturday
+            const dayOfWeek = dateObj.getUTCDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-            return {
-                name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),
-                present: presenceCount,
-                absent: Math.max(0, totalEmployees - presenceCount)
-            };
-        }));
+            if (!isWeekend) {
+                const attFilter: any = { date: dateStr };
+                if (organizationId) attFilter.organizationId = organizationId;
+                const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
+
+                graphData.push({
+                    name: dateObj.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+                    present: presenceCount,
+                    absent: Math.max(0, totalEmployees - presenceCount),
+                    holiday: 0,
+                    isHoliday: false
+                });
+            }
+            currentOffset++;
+        }
+        const attendanceGraphData = graphData.reverse();
 
         const currentMonth = today.getMonth();
         const currentYear = today.getFullYear();
@@ -200,17 +215,24 @@ export class DashboardService {
 
         const days = Array.from({ length: daysToFetch }, (_, i) => i + 1);
 
-        const graphData = await Promise.all(days.map(async (day) => {
+        const graphData = (await Promise.all(days.map(async (day) => {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const attFilter: any = { date: dateStr };
             if (organizationId) attFilter.organizationId = organizationId;
             const presenceCount = await this.attendanceModel.countDocuments(attFilter).exec();
+            
+            const date = new Date(dateStr);
+            const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+
             return {
-                name: `${day}`,
+                name: `${day} (${dayName})`,
                 present: presenceCount,
-                absent: Math.max(0, totalEmployees - presenceCount),
+                absent: isWeekend ? 0 : Math.max(0, totalEmployees - presenceCount),
+                holiday: isWeekend ? Math.max(0, totalEmployees - presenceCount) : 0,
+                isHoliday: isWeekend
             };
-        }));
+        })));
 
         return { graphData, totalEmployees: totalEmployees };
     }

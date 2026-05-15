@@ -13,7 +13,8 @@ import {
     CalendarClock,
     History,
     Search,
-    X
+    X,
+    ChevronDown
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import toast from 'react-hot-toast';
@@ -57,20 +58,20 @@ export const Tasks: React.FC = () => {
 
     const getStatusClasses = (status: string) => {
         switch (status) {
-            case 'TODO':
-                return 'bg-slate-100 text-slate-700';
+            case 'TODO': return 'bg-slate-50 text-slate-700 border-slate-200';
+            case 'IN_PROGRESS': return 'bg-amber-50 text-amber-700 border-amber-200';
+            case 'DONE': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'CLOSED': return 'bg-rose-50 text-rose-700 border-rose-200';
+            default: return 'bg-slate-50 text-slate-700 border-slate-200';
+        }
+    };
 
-            case 'IN_PROGRESS':
-                return 'bg-amber-100 text-amber-700';
-
-            case 'DONE':
-                return 'bg-emerald-100 text-emerald-700';
-
-            case 'CLOSED':
-                return 'bg-red-100 text-red-700';
-
-            default:
-                return 'bg-slate-100 text-slate-700';
+    const getPriorityClasses = (priority: string) => {
+        switch (priority) {
+            case 'HIGH': return 'bg-rose-50 text-rose-700 border-rose-100';
+            case 'MEDIUM': return 'bg-amber-50 text-amber-700 border-amber-100';
+            case 'LOW': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            default: return 'bg-slate-50 text-slate-700 border-slate-200';
         }
     };
 
@@ -338,6 +339,9 @@ export const Tasks: React.FC = () => {
                                 <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                                     {task.projectId?.name ||
                                         'General'}
+                                </span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getPriorityClasses(task.priority || 'MEDIUM')}`}>
+                                    {task.priority || 'MEDIUM'}
                                 </span>
                             </div>
 
@@ -638,45 +642,16 @@ export const Tasks: React.FC = () => {
                     <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Task
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Owner
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Priority
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Status
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    EST (Hrs)
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Start Date
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Planned End
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Actual End
-                                </th>
-
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                                    Comments
-                                </th>
-
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
-                                    Actions
-                                </th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Task</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Owner</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Priority</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Status</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">EST (Hrs)</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Start Date</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Planned End</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Actual End</th>
+                                <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Comments</th>
+                                <th className="px-4 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Actions</th>
                             </tr>
                         </thead>
 
@@ -714,40 +689,35 @@ export const Tasks: React.FC = () => {
 
                                     {/* PRIORITY */}
                                     <td className="px-4 py-4 whitespace-nowrap">
-                                        <span
-                                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                                                task.priority === 'HIGH'
-                                                    ? 'bg-red-100 text-red-700'
-                                                    : task.priority === 'MEDIUM'
-                                                        ? 'bg-amber-100 text-amber-700'
-                                                        : 'bg-emerald-100 text-emerald-700'
-                                            }`}
-                                        >
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getPriorityClasses(task.priority || 'MEDIUM')}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                                (task.priority || 'MEDIUM') === 'HIGH' ? 'bg-rose-500' :
+                                                (task.priority || 'MEDIUM') === 'MEDIUM' ? 'bg-amber-500' :
+                                                'bg-emerald-500'
+                                            }`} />
                                             {task.priority || 'MEDIUM'}
                                         </span>
                                     </td>
 
                                     {/* STATUS */}
                                     <td className="px-4 py-4 whitespace-nowrap">
-                                        <select
-                                            value={task.status}
-                                            onChange={(e) =>
-                                                updateStatus(
-                                                    task._id,
-                                                    e.target.value as any
-                                                )
-                                            }
-                                            className={`text-xs font-semibold rounded-full px-3 py-1 border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer ${getStatusClasses(
-                                                task.status
-                                            )}`}
-                                        >
-                                            <option value="TODO">To Do</option>
-                                            <option value="IN_PROGRESS">In Progress</option>
-                                            <option value="DONE">Done</option>
-                                            {canManage && (
-                                                <option value="CLOSED">Closed</option>
-                                            )}
-                                        </select>
+                                        <div className="relative inline-block w-32 group">
+                                            <select
+                                                value={task.status}
+                                                onChange={(e) => updateStatus(task._id, e.target.value as any)}
+                                                className={`appearance-none w-full text-[11px] font-bold rounded-full pl-3 pr-8 py-1.5 border focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 cursor-pointer transition-all shadow-sm group-hover:shadow-md ${getStatusClasses(task.status)}`}
+                                            >
+                                                <option value="TODO">To Do</option>
+                                                <option value="IN_PROGRESS">In Progress</option>
+                                                <option value="DONE">Done</option>
+                                                {canManage && (
+                                                    <option value="CLOSED">Closed</option>
+                                                )}
+                                            </select>
+                                            <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-current opacity-60">
+                                                <ChevronDown className="w-3.5 h-3.5" />
+                                            </div>
+                                        </div>
                                     </td>
 
                                     {/* EST HOURS */}

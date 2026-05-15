@@ -442,19 +442,28 @@ export const Attendance: React.FC = () => {
                                             const isPresent = rec.durationMs && rec.durationMs > 0;
                                             const isInProgress = rec.records && rec.records.length > 0 && !rec.records[rec.records.length - 1].punchOut;
                                             
+                                            const dateObj = new Date(rec.date);
+                                            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+                                            const isWeekend = dateObj.getUTCDay() === 0 || dateObj.getUTCDay() === 6;
+
                                             let statusColor = 'bg-rose-50/30 border-rose-100 hover:border-rose-200';
                                             let statusLabel = 'Absent';
                                             let labelColor = 'bg-rose-500';
                                             let dateLabelColor = 'text-rose-700 border-rose-50';
 
-                                            if (isInProgress) {
+                                            if (isWeekend && !isPresent && !isInProgress) {
+                                                statusColor = 'bg-slate-100/50 border-slate-200 hover:border-slate-300';
+                                                statusLabel = 'Holiday';
+                                                labelColor = 'bg-slate-400';
+                                                dateLabelColor = 'text-slate-600 border-slate-100';
+                                            } else if (isInProgress) {
                                                 statusColor = 'bg-amber-50/30 border-amber-100 hover:border-amber-200';
-                                                statusLabel = 'In Progress';
+                                                statusLabel = isWeekend ? 'Holiday Work' : 'In Progress';
                                                 labelColor = 'bg-amber-500';
                                                 dateLabelColor = 'text-amber-700 border-amber-50';
                                             } else if (isPresent) {
                                                 statusColor = 'bg-emerald-50/30 border-emerald-100 hover:border-emerald-200 hover:shadow-sm';
-                                                statusLabel = 'Present';
+                                                statusLabel = isWeekend ? 'Holiday Present' : 'Present';
                                                 labelColor = 'bg-emerald-500';
                                                 dateLabelColor = 'text-emerald-700 border-emerald-50';
                                             }
@@ -462,11 +471,12 @@ export const Attendance: React.FC = () => {
                                             return (
                                                 <div 
                                                     key={rec._id} 
-                                                    className={`p-4 rounded-xl border transition-all group ${statusColor} ${!isPresent && !isInProgress ? 'opacity-80' : ''}`}
+                                                    className={`p-4 rounded-xl border transition-all group ${statusColor} ${!isPresent && !isInProgress && !isWeekend ? 'opacity-80' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-3">
-                                                        <div className={`px-2 py-1 rounded text-xs font-bold border bg-white ${dateLabelColor}`}>
-                                                            {rec.date.split('-').reverse().join('/')}
+                                                        <div className={`px-2 py-1 rounded text-[10px] font-black border bg-white flex flex-col items-center leading-tight ${dateLabelColor}`}>
+                                                            <span className="text-sm">{rec.date.split('-').reverse().join('/')}</span>
+                                                            <span className="uppercase opacity-60">{dayName}</span>
                                                         </div>
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white ${labelColor}`}>
                                                             {statusLabel}
@@ -496,8 +506,14 @@ export const Attendance: React.FC = () => {
                                                         </div>
                                                     ) : (
                                                         <div className="flex flex-col items-center justify-center py-4 space-y-1">
-                                                            <AlertCircle className="w-6 h-6 text-rose-300" />
-                                                            <span className="text-xs text-rose-400 font-medium italic">No Entry Found</span>
+                                                            {isWeekend ? (
+                                                                <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">Weekend</span>
+                                                            ) : (
+                                                                <>
+                                                                    <AlertCircle className="w-6 h-6 text-rose-300" />
+                                                                    <span className="text-xs text-rose-400 font-medium italic">No Entry Found</span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
