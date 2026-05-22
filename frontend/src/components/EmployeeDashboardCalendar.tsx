@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
 import { AttendanceRecord } from '../services/attendanceService';
 
 interface EmployeeDashboardCalendarProps {
     history: AttendanceRecord[];
+    onEditClick?: (date: string) => void;
 }
 
-export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps> = ({ history }) => {
+export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps> = ({ history, onEditClick }) => {
     // Current month state
     const [currentDate, setCurrentDate] = React.useState(new Date());
 
@@ -72,13 +73,24 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
     // Actual days
     for (let i = 1; i <= daysInMonth; i++) {
         const status = getDayStatus(i);
+        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        
         days.push(
             <div
                 key={i}
-                className={`flex flex-col items-center justify-center p-2 rounded-lg border text-sm font-medium transition-colors cursor-default ${getStatusClasses(status)}`}
+                className={`group relative flex flex-col items-center justify-center p-2 rounded-lg border text-sm font-medium transition-colors cursor-default ${getStatusClasses(status)}`}
                 title={status.charAt(0).toUpperCase() + status.slice(1)}
             >
                 {i}
+                {onEditClick && status !== 'future' && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onEditClick(dateStr); }}
+                        className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 bg-white rounded shadow-sm hover:bg-indigo-50 text-indigo-600 transition-all border border-indigo-100"
+                        title="Edit Attendance"
+                    >
+                        <Edit2 className="w-3 h-3" />
+                    </button>
+                )}
             </div>
         );
     }
