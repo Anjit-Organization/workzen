@@ -106,7 +106,7 @@ export const EmployeeProfile: React.FC = () => {
                             <h3 className="text-sm font-semibold text-slate-700">Attendance</h3>
                         </div>
                         <p className="text-3xl font-bold text-slate-900">{attendance?.length || 0}</p>
-                        <p className="text-xs text-slate-500 mt-1">Days logged (30d)</p>
+                        <p className="text-xs text-slate-500 mt-1">Current month</p>
                     </div>
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-center">
                         <div className="flex items-center text-rose-600 mb-2">
@@ -114,7 +114,7 @@ export const EmployeeProfile: React.FC = () => {
                             <h3 className="text-sm font-semibold text-slate-700">Leaves</h3>
                         </div>
                         <p className="text-3xl font-bold text-slate-900">{leaves?.filter((l: any) => l.status === 'APPROVED').length || 0}</p>
-                        <p className="text-xs text-slate-500 mt-1">Total approved</p>
+                        <p className="text-xs text-slate-500 mt-1">Current month</p>
                     </div>
                 </div>
             </div>

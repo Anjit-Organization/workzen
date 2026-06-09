@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Leave, LeaveDocument, LeaveStatus, LeaveType } from './schemas/leave.schema';
 import { LeaveBalance, LeaveBalanceDocument } from './schemas/leave-balance.schema';
 import { ApplyLeaveDto } from './dto/apply-leave.dto';
 import { UpdateLeaveStatusDto } from './dto/update-leave-status.dto';
-
 import { Employee, EmployeeDocument } from '../employees/schemas/employee.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class LeavesService {
@@ -14,8 +15,39 @@ export class LeavesService {
         @InjectModel(Leave.name) private leaveModel: Model<LeaveDocument>,
         @InjectModel(LeaveBalance.name) private leaveBalanceModel: Model<LeaveBalanceDocument>,
         @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+        @InjectModel(User.name) private userModel: Model<UserDocument>,
     ) { }
 
+    // Get employee by userId, or auto-create an Employee record for HR/Manager who don't have one
+    async getOrCreateEmployeeForUser(userId: string, organizationId?: string): Promise<EmployeeDocument> {
+        let employee = await this.employeeModel.findOne({ userId: userId as any }).exec();
+        if (employee) return employee;
+
+        // For HR/Manager, auto-create a minimal Employee record so leave tracking works
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) throw new NotFoundException('User not found');
+
+        if (user.role !== Role.HR && user.role !== Role.MANAGER) {
+            throw new NotFoundException('Employee profile not found for this user');
+        }
+
+        const newEmployee = new this.employeeModel({
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            phone: 'N/A',
+            department: user.role === Role.HR ? 'Human Resources' : 'Management',
+            designation: user.role,
+            joiningDate: new Date(),
+            userId: userId,
+            organizationId: organizationId || user.organizationId,
+            status: 'ACTIVE',
+            role: user.role,
+        });
+
+        return newEmployee.save() as unknown as EmployeeDocument;
+    }
+
+    // Legacy: find employee by userId (throws if not found)
     async getEmployeeByUserId(userId: string): Promise<EmployeeDocument> {
         const employee = await this.employeeModel.findOne({ userId: userId as any }).exec();
         if (!employee) throw new NotFoundException('Employee profile not found');
@@ -23,7 +55,7 @@ export class LeavesService {
     }
 
     async getBalanceForUser(userId: string): Promise<LeaveBalanceDocument> {
-        const employee = await this.getEmployeeByUserId(userId);
+        const employee = await this.getOrCreateEmployeeForUser(userId);
         return this.getBalance(employee._id.toString());
     }
 
@@ -50,9 +82,10 @@ export class LeavesService {
         return balance as LeaveBalanceDocument;
     }
 
-    // Employee: Apply for leave
+    // Employee/HR/Manager: Apply for leave
     async applyLeave(userId: string, dto: ApplyLeaveDto, organizationId: string): Promise<Leave> {
-        const employee = await this.getEmployeeByUserId(userId);
+        // Auto-creates Employee record for HR/Manager if they don't have one
+        const employee = await this.getOrCreateEmployeeForUser(userId, organizationId);
         const employeeId = employee._id.toString();
         const startDate = new Date(dto.startDate);
         const endDate = new Date(dto.endDate);
@@ -61,7 +94,7 @@ export class LeavesService {
             throw new BadRequestException('Start date cannot be after end date');
         }
 
-        // Rough calculation of days (ignoring weekends/holidays for simplicity in this MVP)
+        // Rough calculation of days
         const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
         const leaveDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 

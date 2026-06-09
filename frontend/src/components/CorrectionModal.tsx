@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { attendanceService } from '../services/attendanceService';
@@ -8,14 +8,24 @@ interface CorrectionModalProps {
     onClose: () => void;
     attendanceId: string;
     date: string;
+    existingPunchIn?: string;
+    existingPunchOut?: string;
     onSuccess: () => void;
 }
 
-export const CorrectionModal: React.FC<CorrectionModalProps> = ({ isOpen, onClose, attendanceId, date, onSuccess }) => {
+export const CorrectionModal: React.FC<CorrectionModalProps> = ({ isOpen, onClose, attendanceId, date, existingPunchIn, existingPunchOut, onSuccess }) => {
     const [reason, setReason] = useState('');
     const [punchIn, setPunchIn] = useState('');
     const [punchOut, setPunchOut] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setPunchIn(existingPunchIn || '');
+            setPunchOut(existingPunchOut || '');
+            setReason('');
+        }
+    }, [isOpen, existingPunchIn, existingPunchOut]);
 
     if (!isOpen) return null;
 

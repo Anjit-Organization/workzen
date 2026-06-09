@@ -8,8 +8,8 @@ export class AttendanceCorrection {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
     userId: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Attendance', required: true })
-    attendanceId: string;
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Attendance', required: false })
+    attendanceId?: string;
 
     @Prop({ required: true })
     date: string; // YYYY-MM-DD

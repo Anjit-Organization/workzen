@@ -5,15 +5,17 @@ import { LeavesController } from './leaves.controller';
 import { Leave, LeaveSchema } from './schemas/leave.schema';
 import { LeaveBalance, LeaveBalanceSchema } from './schemas/leave-balance.schema';
 import { Employee, EmployeeSchema } from '../employees/schemas/employee.schema';
-import { UsersModule } from '../users/users.module'; // To verify if HR/Admin
-import { EmployeesModule } from '../employees/employees.module'; // To verify if employee exists
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { UsersModule } from '../users/users.module';
+import { EmployeesModule } from '../employees/employees.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Leave.name, schema: LeaveSchema },
       { name: LeaveBalance.name, schema: LeaveBalanceSchema },
-      { name: Employee.name, schema: EmployeeSchema }
+      { name: Employee.name, schema: EmployeeSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     UsersModule,
     EmployeesModule,

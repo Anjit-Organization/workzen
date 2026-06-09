@@ -3,7 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { leaveService, Leave, LeaveBalance } from '../services/leaveService';
 import { Modal } from '../components/ui/Modal';
 import { ApplyLeaveForm } from '../components/ApplyLeaveForm';
-import { Plus, Check, X, Clock, Calendar } from 'lucide-react';
+import { Plus, Check, X, Clock, Calendar, User as UserIcon, ChevronDown, AlertCircle } from 'lucide-react';
+import { employeeService, Employee } from '../services/employeeService';
 
 export const Leaves: React.FC = () => {
     const { user } = useAuth();
@@ -11,6 +12,15 @@ export const Leaves: React.FC = () => {
     const [balance, setBalance] = useState<LeaveBalance | null>(null);
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'requests' | 'monthly'>('requests');
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [selectedEmployee, setSelectedEmployee] = useState<{ id: string, name: string } | null>(null);
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [monthlyLeaves, setMonthlyLeaves] = useState<Leave[]>([]);
+    const [isMonthlyLoading, setIsMonthlyLoading] = useState(false);
 
     // For HR/Admin, they see all leaves. For Employee, they see only their leaves.
     // In a real app we would pass employeeId to getAllLeaves, but backend handles this via querying if we pass it, or we can fetch all and backend filters by role natively if implemented. 
@@ -18,7 +28,9 @@ export const Leaves: React.FC = () => {
     const fetchLeavesAndBalance = async () => {
         setIsLoading(true);
         try {
-            if (user?.role === 'EMPLOYEE') {
+            const canApplyLeave = user?.role === 'EMPLOYEE' || user?.role === 'HR' || user?.role === 'MANAGER';
+            if (canApplyLeave) {
+                // For employees, HR, and Managers — fetch personal leaves + balance
                 const [leavesData, balanceData] = await Promise.all([
                     leaveService.getAllLeaves(),
                     leaveService.getBalance()
@@ -26,7 +38,7 @@ export const Leaves: React.FC = () => {
                 setLeaves(leavesData.data);
                 setBalance(balanceData);
             } else {
-                // HR/Admin view
+                // Admin — see all org leaves, no personal balance
                 const leavesData = await leaveService.getAllLeaves();
                 setLeaves(leavesData.data);
             }
@@ -37,9 +49,65 @@ export const Leaves: React.FC = () => {
         }
     };
 
+    const fetchEmployees = async () => {
+        try {
+            const data = await employeeService.getAll({ limit: 100 });
+            setEmployees(data.data || []);
+        } catch (error) {
+            console.error('Failed to fetch employees', error);
+        }
+    };
+
     useEffect(() => {
-        fetchLeavesAndBalance();
+        if (user?.role !== 'EMPLOYEE') {
+            fetchEmployees();
+        }
     }, [user]);
+
+    useEffect(() => {
+        if (activeTab === 'requests') {
+            fetchLeavesAndBalance();
+        }
+    }, [user, activeTab]);
+
+    useEffect(() => {
+        const fetchMonthly = async () => {
+            // For HR/Admin, require an employee to be selected
+            if (user?.role !== 'EMPLOYEE' && !selectedEmployee) return;
+            
+            setIsMonthlyLoading(true);
+            try {
+                // For HR/Admin, pass the Employee document _id (not userId)
+                // For EMPLOYEE, don't pass employeeId — backend resolves it from session
+                const params = user?.role !== 'EMPLOYEE' && selectedEmployee
+                    ? { employeeId: selectedEmployee.id, limit: 200 }
+                    : { limit: 200 };
+
+                const leavesData = await leaveService.getAllLeaves(params);
+                
+                // Filter leaves overlapping with the selected month (all statuses shown, color-coded)
+                const [year, month] = selectedMonth.split('-').map(Number);
+                const monthStart = new Date(year, month - 1, 1);
+                const monthEnd = new Date(year, month, 0, 23, 59, 59);
+
+                const filtered = leavesData.data.filter((l: Leave) => {
+                    const lStart = new Date(l.startDate);
+                    const lEnd = new Date(l.endDate);
+                    return lStart <= monthEnd && lEnd >= monthStart;
+                });
+                
+                setMonthlyLeaves(filtered);
+            } catch (error) {
+                console.error('Failed to fetch monthly leaves', error);
+            } finally {
+                setIsMonthlyLoading(false);
+            }
+        };
+        
+        if (activeTab === 'monthly') {
+            fetchMonthly();
+        }
+    }, [selectedEmployee, selectedMonth, activeTab, user]);
 
     const handleStatusUpdate = async (leaveId: string, status: 'APPROVED' | 'REJECTED') => {
         try {
@@ -68,10 +136,10 @@ export const Leaves: React.FC = () => {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        {user?.role === 'EMPLOYEE' ? 'Manage your leave applications and balance' : 'Review employee leave requests'}
+                        {user?.role === 'ADMIN' ? 'Review and manage all employee leave requests' : 'Apply for leave and manage your applications'}
                     </p>
                 </div>
-                {user?.role === 'EMPLOYEE' && (
+                {(user?.role === 'EMPLOYEE' || user?.role === 'HR' || user?.role === 'MANAGER') && (
                     <button
                         onClick={() => setIsApplyModalOpen(true)}
                         className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
@@ -82,7 +150,24 @@ export const Leaves: React.FC = () => {
                 )}
             </div>
 
-            {user?.role === 'EMPLOYEE' && balance && (
+            <div className="flex border-b border-gray-200">
+                <button
+                    onClick={() => setActiveTab('requests')}
+                    className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'requests' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                >
+                    Leave Requests
+                </button>
+                <button
+                    onClick={() => setActiveTab('monthly')}
+                    className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'monthly' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                >
+                    Monthly View
+                </button>
+            </div>
+
+            {activeTab === 'requests' ? (
+                <>
+                    {(user?.role === 'EMPLOYEE' || user?.role === 'HR' || user?.role === 'MANAGER') && balance && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center justify-center">
                         <span className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Casual Leave</span>
@@ -211,6 +296,179 @@ export const Leaves: React.FC = () => {
                     </table>
                 </div>
             </div>
+            </>
+            ) : (
+                <div className="space-y-6">
+                    {user?.role !== 'EMPLOYEE' && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Select Employee</label>
+                                    <div className="relative">
+                                        <select 
+                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none text-slate-700 font-medium cursor-pointer transition-all hover:bg-slate-100"
+                                            value={selectedEmployee?.id || ''}
+                                            onChange={(e) => {
+                                                // Use emp._id (Employee document ID) — this is what backend's findAll filters by
+                                                const empDocId = e.target.value;
+                                                const emp = employees.find(emp => emp._id === empDocId);
+                                                if (emp) {
+                                                    setSelectedEmployee({ id: emp._id, name: emp.name });
+                                                } else {
+                                                    setSelectedEmployee(null);
+                                                }
+                                            }}
+                                        >
+                                            <option value="">Choose an employee...</option>
+                                            {employees.map(emp => (
+                                                <option key={emp._id} value={emp._id}>
+                                                    {emp.name} ({emp.department})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <UserIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                                        <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Select Month</label>
+                                    <input
+                                        type="month"
+                                        value={selectedMonth}
+                                        onChange={(e) => setSelectedMonth(e.target.value)}
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 font-medium cursor-pointer transition-all hover:bg-slate-100"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {user?.role === 'EMPLOYEE' && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center max-w-sm">
+                            <label className="block text-sm font-semibold text-slate-700 mr-4">Select Month</label>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 font-medium cursor-pointer transition-all hover:bg-slate-100"
+                            />
+                        </div>
+                    )}
+
+                    {((user?.role !== 'EMPLOYEE' && selectedEmployee) || user?.role === 'EMPLOYEE') ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                <h2 className="text-xl font-bold text-slate-900 flex items-center">
+                                    <Calendar className="w-5 h-5 mr-2 text-indigo-500" />
+                                    Monthly Leaves: <span className="text-indigo-600 ml-2">{user?.role === 'EMPLOYEE' ? 'You' : selectedEmployee?.name}</span>
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">Approved leaves for {new Date(selectedMonth).toLocaleDateString('default', { month: 'long', year: 'numeric' })}</p>
+                            </div>
+
+                            <div className="p-6">
+                                {isMonthlyLoading ? (
+                                    <div className="py-20 text-center">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+                                        <p className="mt-4 text-slate-500">Fetching records...</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                        {(() => {
+                                            const [year, mon] = selectedMonth.split('-').map(Number);
+                                            const daysInMonth = new Date(year, mon, 0).getDate();
+                                            const days = [];
+                                            for (let i = 1; i <= daysInMonth; i++) {
+                                                const d = new Date(year, mon - 1, i);
+                                                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                                                const dateStr = `${year}-${String(mon).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                                                
+                                                const leaveForDay = monthlyLeaves.find(l => {
+                                                    // Compare as local date strings to avoid timezone shifts
+                                                    const sDate = new Date(l.startDate);
+                                                    const eDate = new Date(l.endDate);
+                                                    const s = `${sDate.getFullYear()}-${String(sDate.getMonth()+1).padStart(2,'0')}-${String(sDate.getDate()).padStart(2,'0')}`;
+                                                    const e = `${eDate.getFullYear()}-${String(eDate.getMonth()+1).padStart(2,'0')}-${String(eDate.getDate()).padStart(2,'0')}`;
+                                                    return dateStr >= s && dateStr <= e;
+                                                });
+
+                                                let statusColor = 'bg-slate-50/50 border-slate-100 hover:border-slate-200';
+                                                let typeLabel = 'Working Day';
+                                                let typeLabelColor = 'bg-slate-300 text-slate-700';
+                                                let dateLabelColor = 'text-slate-500 border-slate-100';
+
+                                                if (leaveForDay) {
+                                                    typeLabel = leaveForDay.type.replace('_', ' ');
+                                                    if (leaveForDay.type === 'CASUAL') {
+                                                        statusColor = 'bg-indigo-50 border-indigo-200';
+                                                        typeLabelColor = 'bg-indigo-500 text-white';
+                                                        dateLabelColor = 'text-indigo-700 border-indigo-100';
+                                                    } else if (leaveForDay.type === 'SICK') {
+                                                        statusColor = 'bg-rose-50 border-rose-200';
+                                                        typeLabelColor = 'bg-rose-500 text-white';
+                                                        dateLabelColor = 'text-rose-700 border-rose-100';
+                                                    } else if (leaveForDay.type === 'PRIVILEGE') {
+                                                        statusColor = 'bg-amber-50 border-amber-200';
+                                                        typeLabelColor = 'bg-amber-500 text-white';
+                                                        dateLabelColor = 'text-amber-700 border-amber-100';
+                                                    }
+                                                } else if (isWeekend) {
+                                                    statusColor = 'bg-slate-100/50 border-slate-200';
+                                                    typeLabel = 'Weekend';
+                                                    typeLabelColor = 'bg-slate-400 text-white';
+                                                    dateLabelColor = 'text-slate-600 border-slate-200';
+                                                }
+
+                                                const approvalBadge = leaveForDay
+                                                    ? leaveForDay.status === 'APPROVED'
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : leaveForDay.status === 'REJECTED'
+                                                        ? 'bg-red-100 text-red-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                    : null;
+
+                                                days.push(
+                                                    <div key={i} className={`p-4 rounded-xl border transition-all ${statusColor} ${!leaveForDay && !isWeekend ? 'opacity-70' : 'shadow-sm'}`}>
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className={`px-2 py-1 rounded text-[10px] font-black border bg-white flex flex-col items-center leading-tight ${dateLabelColor}`}>
+                                                                <span className="text-sm">{String(i).padStart(2, '0')}/{String(mon).padStart(2, '0')}</span>
+                                                                <span className="uppercase opacity-60">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                                                            </div>
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${typeLabelColor}`}>
+                                                                {typeLabel}
+                                                            </span>
+                                                        </div>
+                                                        {leaveForDay ? (
+                                                            <div className="mt-2 space-y-1">
+                                                                <div className="text-xs text-slate-600 font-medium truncate">{leaveForDay.reason}</div>
+                                                                {approvalBadge && (
+                                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${approvalBadge}`}>
+                                                                        {leaveForDay.status}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-sm text-slate-400 italic text-center mt-4">
+                                                                {isWeekend ? 'Off' : 'No Leave'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }
+                                            return days;
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-12 text-center">
+                            <UserIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-slate-900">No Employee Selected</h3>
+                            <p className="text-slate-500 max-w-sm mx-auto mt-2">Please select an employee from the dropdown above to view their monthly leave calendar.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Apply Leave Modal */}
             <Modal

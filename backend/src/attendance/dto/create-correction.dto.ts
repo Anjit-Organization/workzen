@@ -1,9 +1,9 @@
-import { IsString, IsNotEmpty, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsDateString, IsOptional } from 'class-validator';
 
 export class CreateCorrectionDto {
     @IsString()
-    @IsNotEmpty()
-    attendanceId: string;
+    @IsOptional()
+    attendanceId?: string;
 
     @IsString()
     @IsNotEmpty()
