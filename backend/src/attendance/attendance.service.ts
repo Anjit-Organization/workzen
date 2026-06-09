@@ -136,17 +136,24 @@ export class AttendanceService {
     // --- Corrections ---
 
     async submitCorrection(userId: string, dto: CreateCorrectionDto, organizationId?: string) {
-        // Validate attendance record exists
-        const filter: any = { _id: dto.attendanceId, userId };
-        if (organizationId) filter.organizationId = organizationId;
-        const record = await this.attendanceModel.findOne(filter).exec();
-        if (!record) throw new BadRequestException('Attendance record not found for this user');
+        if (dto.attendanceId) {
+            const filter: any = { _id: dto.attendanceId, userId };
+            if (organizationId) filter.organizationId = organizationId;
+            const record = await this.attendanceModel.findOne(filter).exec();
+            if (!record) throw new BadRequestException('Attendance record not found for this user');
+        }
 
-        const correction = new this.correctionModel({
+        const correctionData: any = {
             userId,
             organizationId,
             ...dto
-        });
+        };
+
+        if (!correctionData.attendanceId) {
+            delete correctionData.attendanceId;
+        }
+
+        const correction = new this.correctionModel(correctionData);
         return correction.save();
     }
 
@@ -178,7 +185,22 @@ export class AttendanceService {
         }
 
         if (dto.status === 'APPROVED') {
-            const attendance = await this.attendanceModel.findById(correction.attendanceId).exec();
+            let attendance = null;
+            if (correction.attendanceId) {
+                attendance = await this.attendanceModel.findById(correction.attendanceId).exec();
+            }
+            if (!attendance) {
+                attendance = await this.attendanceModel.findOne({ userId: correction.userId, date: correction.date }).exec();
+                if (!attendance) {
+                    attendance = new this.attendanceModel({
+                        userId: correction.userId,
+                        date: correction.date,
+                        organizationId: correction.organizationId,
+                        records: []
+                    });
+                }
+            }
+
             if (attendance) {
                 // If it's approved, just push it into records or override entire records list?
                 // For simplicity, let's override with exactly what was requested as a single punch for the day.
