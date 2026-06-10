@@ -41,7 +41,11 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
 
         if (record) {
             if (record.isAbsent) return 'absent';
-            if (record.records && record.records.length > 0) return 'present';
+            if (record.records && record.records.length > 0) {
+                const lastRecord = record.records[record.records.length - 1];
+                if (!lastRecord.punchOut) return 'incomplete';
+                return 'present';
+            }
         }
 
         if (isWeekend) return 'weekend';
@@ -56,6 +60,8 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
                 return 'bg-emerald-100 text-emerald-800 border-emerald-200';
             case 'absent':
                 return 'bg-rose-100 text-rose-800 border-rose-200';
+            case 'incomplete':
+                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
             case 'weekend':
                 return 'bg-slate-100 text-slate-500 border-slate-200 opacity-70';
             case 'future':
@@ -129,6 +135,10 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
                 <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full bg-emerald-400 mr-2"></div>
                     Present
+                </div>
+                <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-yellow-400 mr-2"></div>
+                    Incomplete / Working
                 </div>
                 <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full bg-rose-400 mr-2"></div>
