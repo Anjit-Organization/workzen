@@ -38,7 +38,7 @@ export const Dashboard: React.FC = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
-    const [selectedAttendanceForCorrection, setSelectedAttendanceForCorrection] = useState<{ id: string, date: string } | null>(null);
+    const [selectedAttendanceForCorrection, setSelectedAttendanceForCorrection] = useState<{ id: string, date: string, punchIn?: string, punchOut?: string } | null>(null);
 
     useEffect(() => {
         // Clock tick
@@ -217,7 +217,12 @@ export const Dashboard: React.FC = () => {
                     history={history} 
                     onEditClick={(date) => {
                         const record = history.find(r => r.date === date);
-                        setSelectedAttendanceForCorrection({ id: record?._id || '', date });
+                        let pIn, pOut;
+                        if (record?.records?.length > 0) {
+                            pIn = record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                            pOut = record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                        }
+                        setSelectedAttendanceForCorrection({ id: record?._id || '', date, punchIn: pIn, punchOut: pOut });
                         setCorrectionModalOpen(true);
                     }}
                 />
@@ -249,12 +254,17 @@ export const Dashboard: React.FC = () => {
                                             {record.durationMs ? formatTime(record.durationMs / 1000) : '--'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedAttendanceForCorrection({ id: record._id, date: record.date });
-                                                    setCorrectionModalOpen(true);
-                                                }}
-                                                className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors"
+                                                <button
+                                                    onClick={() => {
+                                                        let pIn, pOut;
+                                                        if (record?.records?.length > 0) {
+                                                            pIn = record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                                                            pOut = record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                                                        }
+                                                        setSelectedAttendanceForCorrection({ id: record._id, date: record.date, punchIn: pIn, punchOut: pOut });
+                                                        setCorrectionModalOpen(true);
+                                                    }}
+                                                    className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors"
                                                 title="Request Correction"
                                             >
                                                 <Edit3 className="w-4 h-4" />
@@ -279,6 +289,8 @@ export const Dashboard: React.FC = () => {
                     onClose={() => { setCorrectionModalOpen(false); setSelectedAttendanceForCorrection(null); }}
                     attendanceId={selectedAttendanceForCorrection?.id || ''}
                     date={selectedAttendanceForCorrection?.date || ''}
+                    existingPunchIn={selectedAttendanceForCorrection?.punchIn}
+                    existingPunchOut={selectedAttendanceForCorrection?.punchOut}
                     onSuccess={async () => {
                         const histData = await attendanceService.getHistory();
                         setHistory(histData);
@@ -670,36 +682,89 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {(user?.role === 'MANAGER' || user?.role === 'HR') && (
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 mt-6">
-                        <h3 className="text-xl font-semibold text-slate-900 mb-6">Your Recent Punches</h3>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-slate-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Punch In</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Punch Out</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Duration</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {history.slice(0, 5).map((record) => (
-                                        <tr key={record._id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{record.date}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                                {record.records && record.records.length > 0 && record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                                {record.records && record.records.length > 0 && record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                                {record.durationMs ? formatTime(record.durationMs / 1000) : '--'}
-                                            </td>
+                    <div className="mt-6 space-y-6">
+                        <EmployeeDashboardCalendar 
+                            history={history} 
+                            onEditClick={(date) => {
+                                const record = history.find(r => r.date === date);
+                                let pIn, pOut;
+                                if (record?.records?.length > 0) {
+                                    pIn = record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                                    pOut = record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                                }
+                                setSelectedAttendanceForCorrection({ id: record?._id || '', date, punchIn: pIn, punchOut: pOut });
+                                setCorrectionModalOpen(true);
+                            }}
+                        />
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+                            <h3 className="text-xl font-semibold text-slate-900 mb-6">Your Recent Punches</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Punch In</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Punch Out</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Duration</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {history.slice(0, 5).map((record) => (
+                                            <tr key={record._id}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{record.date}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                                    {record.records && record.records.length > 0 && record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                                    {record.records && record.records.length > 0 && record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                                    {record.durationMs ? formatTime(record.durationMs / 1000) : '--'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                                    <button
+                                                        onClick={() => {
+                                                            let pIn, pOut;
+                                                            if (record?.records?.length > 0) {
+                                                                pIn = record.records[0].punchIn ? new Date(record.records[0].punchIn).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                                                                pOut = record.records[record.records.length - 1].punchOut ? new Date(record.records[record.records.length - 1].punchOut).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : undefined;
+                                                            }
+                                                            setSelectedAttendanceForCorrection({ id: record._id, date: record.date, punchIn: pIn, punchOut: pOut });
+                                                            setCorrectionModalOpen(true);
+                                                        }}
+                                                        className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors"
+                                                        title="Request Correction"
+                                                    >
+                                                        <Edit3 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {history.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">
+                                                    No punching history found.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+
+                        <CorrectionModal
+                            isOpen={correctionModalOpen}
+                            onClose={() => { setCorrectionModalOpen(false); setSelectedAttendanceForCorrection(null); }}
+                            attendanceId={selectedAttendanceForCorrection?.id || ''}
+                            date={selectedAttendanceForCorrection?.date || ''}
+                            existingPunchIn={selectedAttendanceForCorrection?.punchIn}
+                            existingPunchOut={selectedAttendanceForCorrection?.punchOut}
+                            onSuccess={async () => {
+                                const histData = await attendanceService.getHistory();
+                                setHistory(histData);
+                            }}
+                        />
                     </div>
                 )}
 

@@ -114,11 +114,29 @@ export class EmployeesService {
         return { data, total };
     }
 
-    async findOne(id: string, organizationId: string): Promise<Employee> {
+    async findOne(id: string, organizationId: string): Promise<any> {
         const filter: any = { _id: id };
         if (organizationId) filter.organizationId = organizationId;
 
-        const employee = await this.employeeModel.findOne(filter).populate('userId', 'firstName lastName email').exec();
+        let employee: any = await this.employeeModel.findOne(filter).populate('userId', 'firstName lastName email').exec();
+        
+        // Fallback for virtual employees (Admin/Manager/HR)
+        if (!employee) {
+            const user = await this.userModel.findOne({ _id: id, organizationId, role: { $in: [Role.HR, Role.MANAGER, Role.ADMIN] } }).exec();
+            if (user) {
+                return {
+                    _id: user._id,
+                    name: `${user.firstName} ${user.lastName}`,
+                    email: user.email,
+                    department: 'Administration',
+                    designation: user.role,
+                    status: 'ACTIVE',
+                    userId: user,
+                    isVirtual: true
+                };
+            }
+        }
+
         if (!employee || employee.status === 'TERMINATED') {
             throw new NotFoundException(`Employee #${id} not found`);
         }
@@ -127,14 +145,28 @@ export class EmployeesService {
 
     async getInsights(id: string, organizationId: string) {
         const employee = await this.findOne(id, organizationId);
+        const actualUserId = employee.isVirtual ? employee.userId._id : employee.userId?._id || employee.userId;
+
+        // Current month filters
+        const startOfMonthDate = new Date();
+        startOfMonthDate.setDate(1);
+        startOfMonthDate.setHours(0, 0, 0, 0);
+        const currentMonthStr = `${startOfMonthDate.getFullYear()}-${String(startOfMonthDate.getMonth() + 1).padStart(2, '0')}`;
 
         // Fetch Leave History
-        const leaves = await this.leaveModel.find({ employeeId: id, organizationId }).sort({ createdAt: -1 }).exec();
+        const leaves = await this.leaveModel.find({ 
+            employeeId: id, 
+            organizationId,
+            startDate: { $gte: startOfMonthDate }
+        }).sort({ createdAt: -1 }).exec();
 
-        // Fetch Attendance History (Limit to last 30 for visualization purposes)
-        const attendance = await this.attendanceModel.find({ employeeId: id, organizationId })
+        // Fetch Attendance History
+        const attendance = await this.attendanceModel.find({ 
+            userId: actualUserId, 
+            organizationId,
+            date: { $gte: `${currentMonthStr}-01`, $lte: `${currentMonthStr}-31` }
+        })
             .sort({ date: -1 })
-            .limit(30)
             .exec();
 
         // Fetch Assigned Projects
