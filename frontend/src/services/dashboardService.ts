@@ -9,8 +9,7 @@ export interface DashboardStats {
     recentLeaves: Array<{
         _id: string;
         employeeId: {
-            firstName: string;
-            lastName: string;
+            name: string;
             department: string;
         };
         type: string;

@@ -4,8 +4,7 @@ export interface Leave {
     _id: string;
     employeeId: {
         _id: string;
-        firstName: string;
-        lastName: string;
+        name: string;
         department: string;
     } | string;
     type: 'CASUAL' | 'SICK' | 'PRIVILEGE';
