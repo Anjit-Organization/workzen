@@ -151,7 +151,7 @@ export class LeavesService {
 
         const [data, total] = await Promise.all([
             this.leaveModel.find(filter)
-                .populate({ path: 'employeeId', select: 'firstName lastName department' })
+                .populate({ path: 'employeeId', select: 'name department' })
                 .populate({ path: 'approvedBy', select: 'firstName lastName' }) // HR/Admin who approved
                 .sort({ createdAt: -1 })
                 .skip(skip)

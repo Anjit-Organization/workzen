@@ -83,7 +83,7 @@ export class DashboardService {
         if (organizationId) recentLeaveFilter.organizationId = organizationId;
         const recentLeaves = await this.leaveModel.find(recentLeaveFilter)
             .sort({ createdAt: -1 })
-            .populate('employeeId', 'firstName lastName department')
+            .populate('employeeId', 'name department')
             .limit(5)
             .exec();
 

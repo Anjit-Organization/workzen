@@ -493,12 +493,12 @@ export const Dashboard: React.FC = () => {
                             stats.recentLeaves.map((leave) => (
                                 <div key={leave._id} className="flex items-start">
                                     <div className="h-10 w-10 rounded-full bg-slate-100 flex-shrink-0 flex items-center justify-center font-bold text-slate-600 border border-slate-200">
-                                        {leave.employeeId?.firstName?.charAt(0) || 'U'}
+                                        {leave.employeeId?.name?.charAt(0) || 'U'}
                                     </div>
                                     <div className="ml-3 flex-1">
                                         <div className="flex items-center justify-between">
                                             <p className="text-sm font-medium text-slate-900">
-                                                {leave.employeeId?.firstName} {leave.employeeId?.lastName}
+                                                {leave.employeeId?.name}
                                             </p>
                                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${leave.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : leave.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
                                                 {leave.status}
