@@ -497,8 +497,10 @@ export const Attendance: React.FC = () => {
                                                             <span className="text-xs font-black">{rec.date.split('-').reverse().join('/')}</span>
                                                             <span className="text-[9px] font-bold uppercase opacity-70">{dayName}</span>
                                                         </div>
-                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide text-white shrink-0 ${labelColor}`}>
-                                                            {statusLabel}
+                                                        <span className={`inline-flex flex-col items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide text-white shrink-0 leading-[1.1] ${labelColor}`}>
+                                                            {statusLabel.split(' ').map((word, idx) => (
+                                                                <span key={idx}>{word}</span>
+                                                            ))}
                                                         </span>
                                                     </div>
                                                     
