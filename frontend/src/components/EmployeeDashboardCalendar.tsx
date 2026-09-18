@@ -62,7 +62,7 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
     const getStatusClasses = (status: string) => {
         switch (status) {
             case 'holiday':
-                return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+                return 'bg-[#7C3AED]/10 text-[#7C3AED] border-[#7C3AED]/20';
             case 'present':
                 return 'bg-emerald-100 text-emerald-800 border-emerald-200';
             case 'absent':
@@ -152,7 +152,7 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
                     Absent / Leave
                 </div>
                 <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-cyan-400 mr-2"></div>
+                    <div className="w-3 h-3 rounded-full mr-2 bg-[#7C3AED]"></div>
                     Holiday
                 </div>
                 <div className="flex items-center">

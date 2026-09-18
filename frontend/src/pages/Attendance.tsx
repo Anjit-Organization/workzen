@@ -466,10 +466,10 @@ export const Attendance: React.FC = () => {
                                             const isHoliday = holidays.some(h => h.date === rec.date);
 
                                             if (isHoliday && !isPresent && !isInProgress) {
-                                                statusColor = 'bg-cyan-50/30 border-cyan-100 hover:border-cyan-200';
+                                                statusColor = 'bg-[#7C3AED]/10 border-[#7C3AED]/20 hover:border-[#7C3AED]/30';
                                                 statusLabel = 'Holiday';
-                                                labelColor = 'bg-cyan-500';
-                                                dateLabelColor = 'text-cyan-600 border-cyan-50';
+                                                labelColor = 'bg-[#7C3AED]';
+                                                dateLabelColor = 'text-[#7C3AED] border-[#7C3AED]/20';
                                             } else if (isWeekend && !isPresent && !isInProgress) {
                                                 statusColor = 'bg-slate-100/50 border-slate-200 hover:border-slate-300';
                                                 statusLabel = 'Weekend';
