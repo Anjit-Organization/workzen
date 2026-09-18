@@ -14,6 +14,7 @@ import { Tasks } from './pages/Tasks';
 import { TaskHistory } from './pages/TaskHistory';
 import { OrganizationDetails } from './pages/OrganizationDetails';
 import { GlobalUsers } from './pages/GlobalUsers';
+import { Holidays } from './pages/Holidays';
 
 import { Toaster } from 'react-hot-toast';
 import { Organizations } from './pages/Organizations';
@@ -42,6 +43,7 @@ function App() {
                         <Route path="projects" element={<Projects />} />
                         <Route path="tasks" element={<Tasks />} />
                         <Route path="task-history" element={<TaskHistory />} />
+                        <Route path="holidays" element={<Holidays />} />
                     </Route>
 
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />

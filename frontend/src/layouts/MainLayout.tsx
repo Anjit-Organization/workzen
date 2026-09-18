@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, Users, Home, Settings, LogOut, Menu, FolderKanban, CheckSquare } from 'lucide-react';
+import { Building, Users, Home, Settings, LogOut, Menu, FolderKanban, CheckSquare, Calendar } from 'lucide-react';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 
 export const MainLayout: React.FC = () => {
@@ -111,6 +111,15 @@ export const MainLayout: React.FC = () => {
                             <span>Leaves</span>
                         </NavLink>
                     )}
+                    <NavLink
+                        to="/holidays"
+                        className={({ isActive }) =>
+                            `flex items-center px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-indigo-600/10 text-indigo-400 font-medium' : 'text-slate-300 hover:bg-slate-800 hover:text-white font-medium'}`
+                        }
+                    >
+                        <Calendar className="h-5 w-5 mr-3" />
+                        <span>Holidays</span>
+                    </NavLink>
                     {user?.role !== 'SUPERADMIN' && user?.role !== 'EMPLOYEE' && (
                         <NavLink
                             to="/settings"

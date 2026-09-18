@@ -1,13 +1,15 @@
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
 import { AttendanceRecord } from '../services/attendanceService';
+import { Holiday } from '../services/holidayService';
 
 interface EmployeeDashboardCalendarProps {
     history: AttendanceRecord[];
+    holidays?: Holiday[];
     onEditClick?: (date: string) => void;
 }
 
-export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps> = ({ history, onEditClick }) => {
+export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps> = ({ history, holidays = [], onEditClick }) => {
     // Current month state
     const [currentDate, setCurrentDate] = React.useState(new Date());
 
@@ -37,6 +39,9 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
         const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
         const isFuture = dateObj > new Date();
 
+        const holiday = holidays.find(h => h.date === dateStr);
+        if (holiday) return 'holiday';
+
         if (isFuture) return 'future';
 
         if (record) {
@@ -56,6 +61,8 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
 
     const getStatusClasses = (status: string) => {
         switch (status) {
+            case 'holiday':
+                return 'bg-cyan-100 text-cyan-800 border-cyan-200';
             case 'present':
                 return 'bg-emerald-100 text-emerald-800 border-emerald-200';
             case 'absent':
@@ -85,10 +92,10 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
             <div
                 key={i}
                 className={`group relative flex flex-col items-center justify-center p-2 rounded-lg border text-sm font-medium transition-colors cursor-default ${getStatusClasses(status)}`}
-                title={status.charAt(0).toUpperCase() + status.slice(1)}
+                title={status === 'holiday' ? holidays.find(h => h.date === dateStr)?.name : status.charAt(0).toUpperCase() + status.slice(1)}
             >
                 {i}
-                {onEditClick && status !== 'future' && (
+                {onEditClick && status !== 'future' && status !== 'holiday' && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onEditClick(dateStr); }}
                         className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 bg-white rounded shadow-sm hover:bg-indigo-50 text-indigo-600 transition-all border border-indigo-100"
@@ -143,6 +150,10 @@ export const EmployeeDashboardCalendar: React.FC<EmployeeDashboardCalendarProps>
                 <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full bg-rose-400 mr-2"></div>
                     Absent / Leave
+                </div>
+                <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-cyan-400 mr-2"></div>
+                    Holiday
                 </div>
                 <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full bg-slate-300 mr-2"></div>

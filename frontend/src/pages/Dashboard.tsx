@@ -7,6 +7,8 @@ import { attendanceService, AttendanceStatus } from '../services/attendanceServi
 import { CorrectionModal } from '../components/CorrectionModal';
 import { EmployeeDashboardCalendar } from '../components/EmployeeDashboardCalendar';
 import { SendNotificationModal } from '../components/SendNotificationModal';
+import { HolidayModal } from '../components/HolidayModal';
+import { holidayService, Holiday } from '../services/holidayService';
 import { employeeService } from '../services/employeeService';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -39,6 +41,10 @@ export const Dashboard: React.FC = () => {
 
     const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
     const [selectedAttendanceForCorrection, setSelectedAttendanceForCorrection] = useState<{ id: string, date: string, punchIn?: string, punchOut?: string } | null>(null);
+
+    // Holidays State
+    const [holidays, setHolidays] = useState<Holiday[]>([]);
+    const [holidayModalOpen, setHolidayModalOpen] = useState(false);
 
     useEffect(() => {
         // Clock tick
@@ -88,12 +94,14 @@ export const Dashboard: React.FC = () => {
                     return;
                 }
                 if (user?.role === 'EMPLOYEE' || user?.role === 'MANAGER' || user?.role === 'HR') {
-                    const [attData, histData] = await Promise.all([
+                    const [attData, histData, holsData] = await Promise.all([
                         attendanceService.getStatus(),
-                        attendanceService.getHistory()
+                        attendanceService.getHistory(),
+                        holidayService.getAllHolidays()
                     ]);
                     setAttendance(attData);
                     setHistory(histData);
+                    setHolidays(holsData);
                     if (user?.role === 'EMPLOYEE') {
                         setIsLoading(false);
                         return;
@@ -215,6 +223,7 @@ export const Dashboard: React.FC = () => {
 
                 <EmployeeDashboardCalendar 
                     history={history} 
+                    holidays={holidays}
                     onEditClick={(date) => {
                         const record = history.find(r => r.date === date);
                         let pIn, pOut;
@@ -316,10 +325,19 @@ export const Dashboard: React.FC = () => {
                         Welcome to the Admin Portal, {user?.firstName}. Here is the current company status.
                     </p>
                 </div>
-                <div className="mt-4 sm:mt-0">
+                <div className="mt-4 sm:mt-0 flex gap-3">
+                    {(user?.role === 'HR' || user?.role === 'MANAGER' || user?.role === 'ADMIN') && (
+                        <button
+                            onClick={() => setHolidayModalOpen(true)}
+                            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors shadow-sm"
+                        >
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Add Holiday
+                        </button>
+                    )}
                     <button
                         onClick={() => setSendNotificationModalOpen(true)}
-                        className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+                        className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
                     >
                         <BellRing className="w-4 h-4 mr-2" />
                         Send Notification
@@ -685,6 +703,7 @@ export const Dashboard: React.FC = () => {
                     <div className="mt-6 space-y-6">
                         <EmployeeDashboardCalendar 
                             history={history} 
+                            holidays={holidays}
                             onEditClick={(date) => {
                                 const record = history.find(r => r.date === date);
                                 let pIn, pOut;
@@ -771,6 +790,18 @@ export const Dashboard: React.FC = () => {
             <SendNotificationModal
                 isOpen={sendNotificationModalOpen}
                 onClose={() => setSendNotificationModalOpen(false)}
+            />
+            <HolidayModal
+                isOpen={holidayModalOpen}
+                onClose={() => setHolidayModalOpen(false)}
+                onSuccess={async () => {
+                    try {
+                        const holsData = await holidayService.getAllHolidays();
+                        setHolidays(holsData);
+                    } catch (e) {
+                        console.error("Failed to fetch holidays", e);
+                    }
+                }}
             />
         </div>
     );

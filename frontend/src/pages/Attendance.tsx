@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { attendanceService, AttendanceRecord, AttendanceCorrection } from '../services/attendanceService';
 import { employeeService, Employee } from '../services/employeeService';
+import { holidayService, Holiday } from '../services/holidayService';
 import { Calendar, Clock, User as UserIcon, Check, X, AlertCircle, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -9,6 +10,7 @@ export const Attendance: React.FC = () => {
     const { user } = useAuth();
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [corrections, setCorrections] = useState<AttendanceCorrection[]>([]);
+    const [holidays, setHolidays] = useState<Holiday[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'register' | 'corrections' | 'monthly'>('register');
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -42,6 +44,15 @@ export const Attendance: React.FC = () => {
             setEmployees(data.data || []);
         } catch (error) {
             console.error('Failed to fetch employees', error);
+        }
+    };
+
+    const fetchHolidays = async () => {
+        try {
+            const data = await holidayService.getAllHolidays();
+            setHolidays(data);
+        } catch (error) {
+            console.error('Failed to fetch holidays', error);
         }
     };
 
@@ -117,6 +128,7 @@ export const Attendance: React.FC = () => {
     useEffect(() => {
         if (user?.role !== 'EMPLOYEE') {
             fetchEmployees();
+            fetchHolidays();
         }
     }, [user]);
 
@@ -451,19 +463,26 @@ export const Attendance: React.FC = () => {
                                             let labelColor = 'bg-rose-500';
                                             let dateLabelColor = 'text-rose-700 border-rose-50';
 
-                                            if (isWeekend && !isPresent && !isInProgress) {
-                                                statusColor = 'bg-slate-100/50 border-slate-200 hover:border-slate-300';
+                                            const isHoliday = holidays.some(h => h.date === rec.date);
+
+                                            if (isHoliday && !isPresent && !isInProgress) {
+                                                statusColor = 'bg-cyan-50/30 border-cyan-100 hover:border-cyan-200';
                                                 statusLabel = 'Holiday';
+                                                labelColor = 'bg-cyan-500';
+                                                dateLabelColor = 'text-cyan-600 border-cyan-50';
+                                            } else if (isWeekend && !isPresent && !isInProgress) {
+                                                statusColor = 'bg-slate-100/50 border-slate-200 hover:border-slate-300';
+                                                statusLabel = 'Weekend';
                                                 labelColor = 'bg-slate-400';
                                                 dateLabelColor = 'text-slate-600 border-slate-100';
                                             } else if (isInProgress) {
                                                 statusColor = 'bg-amber-50/30 border-amber-100 hover:border-amber-200';
-                                                statusLabel = isWeekend ? 'Holiday Work' : 'In Progress';
+                                                statusLabel = isHoliday ? 'Holiday Work' : isWeekend ? 'Weekend Work' : 'In Progress';
                                                 labelColor = 'bg-amber-500';
                                                 dateLabelColor = 'text-amber-700 border-amber-50';
                                             } else if (isPresent) {
                                                 statusColor = 'bg-emerald-50/30 border-emerald-100 hover:border-emerald-200 hover:shadow-sm';
-                                                statusLabel = isWeekend ? 'Holiday Present' : 'Present';
+                                                statusLabel = isHoliday ? 'Holiday Present' : isWeekend ? 'Weekend Present' : 'Present';
                                                 labelColor = 'bg-emerald-500';
                                                 dateLabelColor = 'text-emerald-700 border-emerald-50';
                                             }
@@ -471,20 +490,20 @@ export const Attendance: React.FC = () => {
                                             return (
                                                 <div 
                                                     key={rec._id} 
-                                                    className={`p-4 rounded-xl border transition-all group ${statusColor} ${!isPresent && !isInProgress && !isWeekend ? 'opacity-80' : ''}`}
+                                                    className={`p-3 rounded-xl border transition-all group flex flex-col h-full ${statusColor} ${!isPresent && !isInProgress && !isWeekend && !isHoliday ? 'opacity-80' : ''}`}
                                                 >
-                                                    <div className="flex justify-between items-start mb-3">
-                                                        <div className={`px-2 py-1 rounded text-[10px] font-black border bg-white flex flex-col items-center leading-tight ${dateLabelColor}`}>
-                                                            <span className="text-sm">{rec.date.split('-').reverse().join('/')}</span>
-                                                            <span className="uppercase opacity-60">{dayName}</span>
+                                                    <div className="flex justify-between items-start gap-1 mb-3">
+                                                        <div className={`px-1.5 py-0.5 rounded border bg-white flex flex-col items-center leading-tight shrink-0 ${dateLabelColor}`}>
+                                                            <span className="text-xs font-black">{rec.date.split('-').reverse().join('/')}</span>
+                                                            <span className="text-[9px] font-bold uppercase opacity-70">{dayName}</span>
                                                         </div>
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white ${labelColor}`}>
+                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide text-white shrink-0 ${labelColor}`}>
                                                             {statusLabel}
                                                         </span>
                                                     </div>
                                                     
                                                     {isPresent || isInProgress ? (
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-2 flex-1 flex flex-col justify-center">
                                                             <div className="flex items-center justify-between text-sm">
                                                                 <span className="text-slate-500 flex items-center"><Clock className="w-3 h-3 mr-1" /> In</span>
                                                                 <span className="font-semibold text-slate-700">{formatTime(rec.records?.[0]?.punchIn)}</span>
@@ -505,9 +524,11 @@ export const Attendance: React.FC = () => {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex flex-col items-center justify-center py-4 space-y-1">
-                                                            {isWeekend ? (
-                                                                <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">Weekend</span>
+                                                        <div className="flex flex-col items-center justify-center py-2 space-y-1 flex-1 min-h-[60px]">
+                                                            {isHoliday || isWeekend ? (
+                                                                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider text-center px-2 w-full break-words line-clamp-2" title={isHoliday ? (holidays.find(h => h.date === rec.date)?.name || 'Holiday') : 'Weekend'}>
+                                                                    {isHoliday ? (holidays.find(h => h.date === rec.date)?.name || 'Holiday') : 'Weekend'}
+                                                                </span>
                                                             ) : (
                                                                 <>
                                                                     <AlertCircle className="w-6 h-6 text-rose-300" />
