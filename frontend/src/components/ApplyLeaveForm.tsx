@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { leaveService } from '../services/leaveService';
 import { useAuth } from '../contexts/AuthContext';
+import { holidayService, Holiday } from '../services/holidayService';
+import toast from 'react-hot-toast';
 
 interface ApplyLeaveFormProps {
     onSuccess: () => void;
@@ -15,9 +17,21 @@ export const ApplyLeaveForm: React.FC<ApplyLeaveFormProps> = ({ onSuccess, onCan
         endDate: '',
         reason: ''
     });
-    const [error, setError] = useState('');
+    const [error, setError] = useState<React.ReactNode>('');
     const [isLoading, setIsLoading] = useState(false);
+    const [holidays, setHolidays] = useState<Holiday[]>([]);
 
+    useEffect(() => {
+        const fetchHolidays = async () => {
+            try {
+                const data = await holidayService.getAllHolidays();
+                setHolidays(data);
+            } catch (err) {
+                console.error("Failed to fetch holidays", err);
+            }
+        };
+        fetchHolidays();
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -28,11 +42,77 @@ export const ApplyLeaveForm: React.FC<ApplyLeaveFormProps> = ({ onSuccess, onCan
         setIsLoading(true);
         setError('');
 
+        if (formData.startDate && formData.endDate) {
+            const start = new Date(formData.startDate);
+            const end = new Date(formData.endDate);
+
+            if (start > end) {
+                setError('Start date cannot be after end date.');
+                toast.error('Start date cannot be after end date.');
+                setIsLoading(false);
+                return;
+            }
+
+            const currentDate = new Date(start);
+            while (currentDate <= end) {
+                const dayOfWeek = currentDate.getDay();
+                
+                let suggestion = 'Please change your leave dates.';
+                if (currentDate.getTime() === start.getTime() && start.getTime() === end.getTime()) {
+                    suggestion = 'Please change your selected date.';
+                } else if (currentDate.getTime() === start.getTime()) {
+                    suggestion = 'Please change your start date.';
+                } else if (currentDate.getTime() === end.getTime()) {
+                    suggestion = 'Please change your end date.';
+                } else {
+                    suggestion = 'Please adjust your start or end date to exclude this day.';
+                }
+
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    const dayName = dayOfWeek === 0 ? 'Sunday' : 'Saturday';
+                    const formattedDate = currentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const msg = (
+                        <span>
+                            Your selected dates include a weekend (<strong className="font-semibold text-red-800">{dayName}, {formattedDate}</strong>). {suggestion}
+                        </span>
+                    );
+                    setError(msg);
+                    toast.error(msg);
+                    setIsLoading(false);
+                    return;
+                }
+
+                const matchingHoliday = holidays.find(h => {
+                    const hDate = new Date(h.date);
+                    return hDate.getFullYear() === currentDate.getFullYear() &&
+                           hDate.getMonth() === currentDate.getMonth() &&
+                           hDate.getDate() === currentDate.getDate();
+                });
+
+                if (matchingHoliday) {
+                    const formattedDate = currentDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const msg = (
+                        <span>
+                            Your selected dates include a company holiday: <strong className="font-semibold text-red-800">{matchingHoliday.name} on {formattedDate}</strong>. {suggestion}
+                        </span>
+                    );
+                    setError(msg);
+                    toast.error(msg);
+                    setIsLoading(false);
+                    return;
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        }
+
         try {
             await leaveService.applyLeave(formData);
+            toast.success('Leave applied successfully');
             onSuccess();
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to apply for leave. Please check your balance.');
+            toast.error(err.response?.data?.message || 'Failed to apply for leave. Please check your balance.');
         } finally {
             setIsLoading(false);
         }

@@ -39,7 +39,31 @@ export const EmployeeProfile: React.FC = () => {
         );
     }
 
-    const { employee, leaves, attendance, projects, tasks } = insights;
+    const { employee, leaves, attendance, projects, tasks, leaveBalance } = insights;
+
+    const casualQuota = employee.casualLeaveQuota ?? 12;
+    const sickQuota = employee.sickLeaveQuota ?? 12;
+    const privilegeQuota = employee.privilegeLeaveQuota ?? 15;
+    
+    const casualRemaining = leaveBalance?.casualLeave ?? casualQuota;
+    const sickRemaining = leaveBalance?.sickLeave ?? sickQuota;
+    const privilegeRemaining = leaveBalance?.privilegeLeave ?? privilegeQuota;
+
+    const casualTaken = casualQuota - casualRemaining;
+    const sickTaken = sickQuota - sickRemaining;
+    const privilegeTaken = privilegeQuota - privilegeRemaining;
+
+    const totalQuota = casualQuota + sickQuota + privilegeQuota;
+    const totalRemaining = casualRemaining + sickRemaining + privilegeRemaining;
+    const totalTaken = totalQuota - totalRemaining;
+
+    const currentMonthLeaves = leaves?.filter((l: any) => l.status === 'APPROVED') || [];
+    const currentMonthLeavesTaken = currentMonthLeaves.reduce((total: number, leave: any) => {
+        const start = new Date(leave.startDate).getTime();
+        const end = new Date(leave.endDate).getTime();
+        const days = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+        return total + days;
+    }, 0);
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -83,38 +107,65 @@ export const EmployeeProfile: React.FC = () => {
                 </div>
 
                 {/* KPI Metrics */}
-                <div className="md:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-center">
-                        <div className="flex items-center text-indigo-600 mb-2">
-                            <Briefcase className="w-5 h-5 mr-2" />
-                            <h3 className="text-sm font-semibold text-slate-700">Projects</h3>
+                <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col justify-center">
+                        <div className="flex items-center text-indigo-600 mb-1">
+                            <Briefcase className="w-4 h-4 mr-1.5" />
+                            <h3 className="text-xs font-semibold text-slate-700">Projects</h3>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900">{projects?.length || 0}</p>
-                        <p className="text-xs text-slate-500 mt-1">Active assignments</p>
+                        <p className="text-2xl font-bold text-slate-900">{projects?.length || 0}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Active assignments</p>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-center">
-                        <div className="flex items-center text-amber-600 mb-2">
-                            <CheckCircle2 className="w-5 h-5 mr-2" />
-                            <h3 className="text-sm font-semibold text-slate-700">Tasks</h3>
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col justify-center">
+                        <div className="flex items-center text-amber-600 mb-1">
+                            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                            <h3 className="text-xs font-semibold text-slate-700">Tasks</h3>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900">{tasks?.filter((t: any) => t.status !== 'DONE').length || 0}</p>
-                        <p className="text-xs text-slate-500 mt-1">Pending items</p>
+                        <p className="text-2xl font-bold text-slate-900">{tasks?.filter((t: any) => t.status !== 'DONE').length || 0}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Pending items</p>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-center">
-                        <div className="flex items-center text-emerald-600 mb-2">
-                            <Clock className="w-5 h-5 mr-2" />
-                            <h3 className="text-sm font-semibold text-slate-700">Attendance</h3>
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col justify-center">
+                        <div className="flex items-center text-emerald-600 mb-1">
+                            <Clock className="w-4 h-4 mr-1.5" />
+                            <h3 className="text-xs font-semibold text-slate-700">Attendance</h3>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900">{attendance?.length || 0}</p>
-                        <p className="text-xs text-slate-500 mt-1">Current month</p>
+                        <p className="text-2xl font-bold text-slate-900">{attendance?.length || 0}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Current month</p>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-center">
-                        <div className="flex items-center text-rose-600 mb-2">
-                            <Calendar className="w-5 h-5 mr-2" />
-                            <h3 className="text-sm font-semibold text-slate-700">Leaves</h3>
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col justify-center">
+                        <div className="flex items-center text-rose-600 mb-1">
+                            <Calendar className="w-4 h-4 mr-1.5" />
+                            <h3 className="text-xs font-semibold text-slate-700 flex-1">Leaves</h3>
+                            <span className="text-[10px] font-medium bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded">Left: {totalRemaining}/{totalQuota}</span>
                         </div>
-                        <p className="text-3xl font-bold text-slate-900">{leaves?.filter((l: any) => l.status === 'APPROVED').length || 0}</p>
-                        <p className="text-xs text-slate-500 mt-1">Current month</p>
+                        <div className="flex items-end justify-between mt-1">
+                            <div>
+                                <p className="text-2xl font-bold text-slate-900 leading-none">{totalRemaining}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">Remaining</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-lg font-bold text-amber-500 leading-none">{currentMonthLeavesTaken}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">This Mth</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-lg font-bold text-rose-500 leading-none">{totalTaken}/{totalQuota}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">Taken</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-start text-[9px] text-slate-500 mt-3 pt-2 border-t border-slate-100">
+                            <div title="Casual Leave" className="flex flex-col">
+                                <span><span className="text-slate-700 font-medium">CL:</span> {casualTaken}/{casualQuota}</span>
+                                <span className="text-[8px] text-emerald-600 mt-0.5 font-medium">Left: {casualRemaining}</span>
+                            </div>
+                            <div title="Sick Leave" className="flex flex-col items-center">
+                                <span><span className="text-slate-700 font-medium">SL:</span> {sickTaken}/{sickQuota}</span>
+                                <span className="text-[8px] text-emerald-600 mt-0.5 font-medium">Left: {sickRemaining}</span>
+                            </div>
+                            <div title="Privilege Leave" className="flex flex-col items-end">
+                                <span><span className="text-slate-700 font-medium">PL:</span> {privilegeTaken}/{privilegeQuota}</span>
+                                <span className="text-[8px] text-emerald-600 mt-0.5 font-medium">Left: {privilegeRemaining}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

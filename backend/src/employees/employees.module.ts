@@ -4,6 +4,7 @@ import { EmployeesService } from './employees.service';
 import { EmployeesController } from './employees.controller';
 import { Employee, EmployeeSchema } from './schemas/employee.schema';
 import { Leave, LeaveSchema } from '../leaves/schemas/leave.schema';
+import { LeaveBalance, LeaveBalanceSchema } from '../leaves/schemas/leave-balance.schema';
 import { Attendance, AttendanceSchema } from '../attendance/schemas/attendance.schema';
 import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
@@ -17,6 +18,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
       { name: Employee.name, schema: EmployeeSchema },
       { name: User.name, schema: UserSchema },
       { name: Leave.name, schema: LeaveSchema },
+      { name: LeaveBalance.name, schema: LeaveBalanceSchema },
       { name: Attendance.name, schema: AttendanceSchema },
       { name: Project.name, schema: ProjectSchema },
       { name: Task.name, schema: TaskSchema },

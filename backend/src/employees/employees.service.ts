@@ -7,6 +7,7 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { UsersService } from '../users/users.service';
 import { Role } from '../common/enums/role.enum';
 import { Leave, LeaveDocument } from '../leaves/schemas/leave.schema';
+import { LeaveBalance, LeaveBalanceDocument } from '../leaves/schemas/leave-balance.schema';
 import { Attendance, AttendanceDocument } from '../attendance/schemas/attendance.schema';
 import { Project, ProjectDocument } from '../projects/schemas/project.schema';
 import { Task, TaskDocument } from '../tasks/schemas/task.schema';
@@ -19,6 +20,7 @@ export class EmployeesService {
         @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel(Leave.name) private leaveModel: Model<LeaveDocument>,
+        @InjectModel(LeaveBalance.name) private leaveBalanceModel: Model<LeaveBalanceDocument>,
         @InjectModel(Attendance.name) private attendanceModel: Model<AttendanceDocument>,
         @InjectModel(Project.name) private projectModel: Model<ProjectDocument>,
         @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
@@ -86,14 +88,14 @@ export class EmployeesService {
 
         // For administrative lists (like dropdowns), include HR and Managers who aren't in Employee collection
         if (!search) {
-             const employeeUserIds = data.map(e => (e.userId as any)?._id || e.userId);
-             const additionalUsers = await this.userModel.find({
+            const employeeUserIds = data.map(e => (e.userId as any)?._id || e.userId);
+            const additionalUsers = await this.userModel.find({
                 organizationId,
                 role: { $in: [Role.HR, Role.MANAGER] },
                 isActive: true,
                 _id: { $nin: employeeUserIds }
             } as any).exec();
-            
+
             const virtualEmployees = additionalUsers.map(u => ({
                 _id: u._id,
                 name: `${u.firstName} ${u.lastName}`,
@@ -104,10 +106,10 @@ export class EmployeesService {
                 userId: u,
                 isVirtual: true
             }));
-            
-            return { 
-                data: [...data, ...virtualEmployees as any].slice(0, Number(limit)), 
-                total: total + virtualEmployees.length 
+
+            return {
+                data: [...data, ...virtualEmployees as any].slice(0, Number(limit)),
+                total: total + virtualEmployees.length
             };
         }
 
@@ -119,7 +121,7 @@ export class EmployeesService {
         if (organizationId) filter.organizationId = organizationId;
 
         let employee: any = await this.employeeModel.findOne(filter).populate('userId', 'firstName lastName email').exec();
-        
+
         // Fallback for virtual employees (Admin/Manager/HR)
         if (!employee) {
             const user = await this.userModel.findOne({ _id: id, organizationId, role: { $in: [Role.HR, Role.MANAGER, Role.ADMIN] } }).exec();
@@ -154,15 +156,15 @@ export class EmployeesService {
         const currentMonthStr = `${startOfMonthDate.getFullYear()}-${String(startOfMonthDate.getMonth() + 1).padStart(2, '0')}`;
 
         // Fetch Leave History
-        const leaves = await this.leaveModel.find({ 
-            employeeId: id, 
+        const leaves = await this.leaveModel.find({
+            employeeId: id,
             organizationId,
             startDate: { $gte: startOfMonthDate }
         }).sort({ createdAt: -1 }).exec();
 
         // Fetch Attendance History
-        const attendance = await this.attendanceModel.find({ 
-            userId: actualUserId, 
+        const attendance = await this.attendanceModel.find({
+            userId: actualUserId,
             organizationId,
             date: { $gte: `${currentMonthStr}-01`, $lte: `${currentMonthStr}-31` }
         })
@@ -177,9 +179,54 @@ export class EmployeesService {
         const taskFilter: any = { assigneeId: id, organizationId };
         const tasks = await this.taskModel.find(taskFilter).populate('projectId', 'name').exec();
 
+        // Calculate dynamic leave balances for the current year
+        const startOfYear = new Date();
+        startOfYear.setMonth(0, 1);
+        startOfYear.setHours(0, 0, 0, 0);
+
+        const yearlyLeaves = await this.leaveModel.find({
+            employeeId: id,
+            organizationId,
+            status: 'APPROVED',
+            startDate: { $gte: startOfYear }
+        }).exec();
+
+        let casualTaken = 0;
+        let sickTaken = 0;
+        let privilegeTaken = 0;
+
+        yearlyLeaves.forEach(leave => {
+            const startDate = new Date(leave.startDate);
+            const endDate = new Date(leave.endDate);
+            const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+            const leaveDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+            if (leave.type === 'CASUAL') casualTaken += leaveDays;
+            if (leave.type === 'SICK') sickTaken += leaveDays;
+            if (leave.type === 'PRIVILEGE') privilegeTaken += leaveDays;
+        });
+
+        // Use quotas from employee or default
+        const casualQuota = employee?.casualLeaveQuota ?? 12;
+        const sickQuota = employee?.sickLeaveQuota ?? 12;
+        const privilegeQuota = employee?.privilegeLeaveQuota ?? 15;
+
+        const dynamicLeaveBalance = {
+            casualLeave: casualQuota - casualTaken,
+            sickLeave: sickQuota - sickTaken,
+            privilegeLeave: privilegeQuota - privilegeTaken,
+            casualTaken,
+            sickTaken,
+            privilegeTaken,
+            casualQuota,
+            sickQuota,
+            privilegeQuota
+        };
+
         return {
             employee,
             leaves,
+            leaveBalance: dynamicLeaveBalance,
             attendance,
             projects,
             tasks
@@ -211,8 +258,35 @@ export class EmployeesService {
         ).exec();
 
         if (!employee) {
+            // Check if it's a virtual employee
+            const user = await this.userModel.findOneAndUpdate(
+                { _id: id, organizationId, role: { $in: [Role.HR, Role.MANAGER, Role.ADMIN] } },
+                { isActive: false },
+                { new: true }
+            ).exec();
+
+            if (user) {
+                // Return a virtual employee format so the frontend doesn't crash
+                return {
+                    _id: user._id,
+                    name: `${user.firstName} ${user.lastName}`,
+                    email: user.email,
+                    department: 'Administration',
+                    designation: user.role,
+                    status: 'TERMINATED',
+                    userId: user,
+                    isVirtual: true
+                } as any;
+            }
+
             throw new NotFoundException(`Employee #${id} not found`);
         }
+
+        // Deactivate actual user login as well
+        if (employee.userId) {
+            await this.userModel.findByIdAndUpdate(employee.userId, { isActive: false }).exec();
+        }
+
         return employee;
     }
 
