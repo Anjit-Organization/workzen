@@ -118,6 +118,20 @@ export class LeavesService {
             throw new BadRequestException(`Insufficient ${dto.type} leave balance.`);
         }
 
+        // Check for overlapping leave applications (PENDING or APPROVED)
+        const overlappingLeave = await this.leaveModel.findOne({
+            employeeId,
+            status: { $in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+            startDate: { $lte: endDate },
+            endDate: { $gte: startDate },
+        }).exec();
+
+        if (overlappingLeave) {
+            throw new BadRequestException(
+                `A leave application already exists for this date range (${overlappingLeave.startDate.toDateString()} – ${overlappingLeave.endDate.toDateString()}) with status: ${overlappingLeave.status}.`,
+            );
+        }
+
         const application = new this.leaveModel({
             ...dto,
             employeeId,

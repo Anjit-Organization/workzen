@@ -48,7 +48,6 @@ export const ApplyLeaveForm: React.FC<ApplyLeaveFormProps> = ({ onSuccess, onCan
 
             if (start > end) {
                 setError('Start date cannot be after end date.');
-                toast.error('Start date cannot be after end date.');
                 setIsLoading(false);
                 return;
             }
@@ -77,7 +76,6 @@ export const ApplyLeaveForm: React.FC<ApplyLeaveFormProps> = ({ onSuccess, onCan
                         </span>
                     );
                     setError(msg);
-                    toast.error(msg);
                     setIsLoading(false);
                     return;
                 }
@@ -97,7 +95,6 @@ export const ApplyLeaveForm: React.FC<ApplyLeaveFormProps> = ({ onSuccess, onCan
                         </span>
                     );
                     setError(msg);
-                    toast.error(msg);
                     setIsLoading(false);
                     return;
                 }
@@ -112,7 +109,6 @@ export const ApplyLeaveForm: React.FC<ApplyLeaveFormProps> = ({ onSuccess, onCan
             onSuccess();
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to apply for leave. Please check your balance.');
-            toast.error(err.response?.data?.message || 'Failed to apply for leave. Please check your balance.');
         } finally {
             setIsLoading(false);
         }
